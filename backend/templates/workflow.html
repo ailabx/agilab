@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}工作流 - AGI实验室{% endblock %}
+{% block content %}
+<h2>工作流</h2>
+<div class="card">
+    <div class="card-header">6 步编排 (agno Workflow)</div>
+    <div class="card-body">
+        <div class="d-flex flex-wrap align-items-center mb-3">
+            <span class="badge bg-primary step-badge">Step1 数据采集</span>
+            <i class="bi bi-arrow-right text-muted mx-1"></i>
+            <span class="badge bg-success step-badge">Parallel 分析师团队</span>
+            <i class="bi bi-arrow-right text-muted mx-1"></i>
+            <span class="badge bg-info step-badge">Loop 多空辩论</span>
+            <i class="bi bi-arrow-right text-muted mx-1"></i>
+            <span class="badge bg-primary step-badge">Step4 裁判裁决</span>
+            <i class="bi bi-arrow-right text-muted mx-1"></i>
+            <span class="badge bg-warning step-badge">Condition 风控</span>
+            <i class="bi bi-arrow-right text-muted mx-1"></i>
+            <span class="badge bg-primary step-badge">Step6 报告</span>
+        </div>
+        <pre>Workflow(steps=[
+    Step(agent=data_agent),              # Phase 1
+    Parallel(*analyst_steps),            # Phase 2
+    Loop(steps=[bull, bear], max_iter=2),# Phase 3
+    Step(agent=judge_agent),             # Phase 4
+    Condition(risk_evaluator),           # Phase 5
+    Step(agent=report_agent),            # Phase 6
+]).run("分析 600519")</pre>
+    </div>
+</div>
+{% endblock %}

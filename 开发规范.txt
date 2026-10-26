@@ -1,0 +1,11 @@
+简约原则，极简代码，强调易读性和易维护性。
+使用中文注释。
+尽量使用标准python库，比如pandas,requests之类。
+每个文件，最好都独立可以使用 __main__运行测试。
+
+测试类的脚本，写在./tests下
+
+界面开发原则
+目录在backend/下
+1、前后端不分离，使用fastapi驱动。
+2、前端使用bootstrap5/tailwind，必要时，可以引入cdn版本的Vue3,或轻量级的js框架。

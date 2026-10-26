@@ -9,10 +9,7 @@ text8.*
 .ipynb_checkpoints/
 .git
 
-bak/
+.venv/
 venv/
 notebook/
-pykalman
-book/
-
-
+bak/

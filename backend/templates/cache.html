@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}数据缓存 - AGI实验室{% endblock %}
+{% block content %}
+<h2>数据缓存</h2>
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        SQLite 缓存 (data/cache.db)
+        <form method="post" action="/cache/clear" style="display:inline">
+            <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i> 清除</button>
+        </form>
+    </div>
+    <div class="card-body">
+        {% if cleared is defined and cleared %}
+        <div class="alert alert-success">已清除 {{ cleared }} 条缓存</div>
+        {% endif %}
+        <div class="row g-3 mb-3">
+            <div class="col-md-6"><div class="stat">
+                <div class="num">{{ cache.total }}</div><div class="label">缓存记录</div>
+            </div></div>
+            <div class="col-md-6"><div class="stat">
+                <div class="num">{{ cache.symbols }}</div><div class="label">品种数</div>
+            </div></div>
+        </div>
+        <pre>缓存策略: 按 (symbol, data_type) 联合主键
+有效期: 12 小时
+加速效果: ~22x (API 0.09s → 缓存 0.004s)</pre>
+    </div>
+</div>
+{% endblock %}
