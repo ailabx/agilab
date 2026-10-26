@@ -2,7 +2,7 @@
 
 AgiLab，AGI实验室。
 
-![AGI实验室界面](images/agi.png)
+<img src="images/agi.png" width="200" alt="AGI实验室界面">
 
 ## 我们是谁，愿景和初心？
 
