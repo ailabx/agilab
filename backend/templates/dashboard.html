@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% block title %}仪表板 - AGI实验室{% endblock %}
+{% block content %}
+
+<!-- Welcome Section -->
+<div class="welcome-section">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1>欢迎使用 AGI实验室</h1>
+            <p>多智能体金融分析系统，支持个股、ETF、期货、可转债全品类分析</p>
+        </div>
+        <div class="d-flex gap-3">
+            <a href="/analyze" class="btn btn-light btn-lg"><i class="bi bi-play-fill"></i> 快速分析</a>
+            <a href="/analyze" class="btn btn-outline-light btn-lg"><i class="bi bi-search"></i> 标的筛选</a>
+        </div>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4 col-lg-2">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1e40af;"><i class="bi bi-building"></i></div>
+            <div class="num">{{ cache.astock }}</div>
+            <div class="label">A股</div>
+        </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(135deg, #dcfce7, #bbf7d0); color: #166534;"><i class="bi bi-pie-chart"></i></div>
+            <div class="num">{{ cache.etf }}</div>
+            <div class="label">ETF</div>
+        </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e;"><i class="bi bi-lightning"></i></div>
+            <div class="num">{{ cache.future }}</div>
+            <div class="label">期货合约</div>
+        </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(135deg, #fce7f3, #fbcfe8); color: #9d174d;"><i class="bi bi-file-text"></i></div>
+            <div class="num">{{ cache.bond }}</div>
+            <div class="label">可转债</div>
+        </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(135deg, #e0e7ff, #c7d2fe); color: #3730a3;"><i class="bi bi-bank"></i></div>
+            <div class="num">{{ cache.fund }}</div>
+            <div class="label">场外基金</div>
+        </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(135deg, #f0fdf4, #bbf7d0); color: #166534;"><i class="bi bi-check-circle"></i></div>
+            <div class="num">{{ stats.completed_tasks }}</div>
+            <div class="label">已完成分析</div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Left Column -->
+    <div class="col-lg-8">
+        <!-- Quick Actions -->
+        <div class="card mb-4">
+            <div class="card-header"><i class="bi bi-lightning"></i> 快速操作</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <a href="/analyze?market=stock" class="text-decoration-none">
+                            <div class="quick-action">
+                                <div class="icon" style="background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1e40af;"><i class="bi bi-building"></i></div>
+                                <div class="content">
+                                    <h4>个股分析</h4>
+                                    <p>深度分析单只股票的投资价值</p>
+                                </div>
+                                <i class="bi bi-arrow-right text-muted"></i>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <a href="/analyze?market=etf" class="text-decoration-none">
+                            <div class="quick-action">
+                                <div class="icon" style="background: linear-gradient(135deg, #dcfce7, #bbf7d0); color: #166534;"><i class="bi bi-pie-chart"></i></div>
+                                <div class="content">
+                                    <h4>ETF分析</h4>
+                                    <p>分析ETF基金的配置价值</p>
+                                </div>
+                                <i class="bi bi-arrow-right text-muted"></i>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <a href="/analyze?market=futures" class="text-decoration-none">
+                            <div class="quick-action">
+                                <div class="icon" style="background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e;"><i class="bi bi-graph-up-arrow"></i></div>
+                                <div class="content">
+                                    <h4>期货分析</h4>
+                                    <p>期货品种的多空辩论分析</p>
+                                </div>
+                                <i class="bi bi-arrow-right text-muted"></i>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <a href="/analyze?market=convertible" class="text-decoration-none">
+                            <div class="quick-action">
+                                <div class="icon" style="background: linear-gradient(135deg, #fce7f3, #fbcfe8); color: #9d174d;"><i class="bi bi-file-earmark-text"></i></div>
+                                <div class="content">
+                                    <h4>可转债分析</h4>
+                                    <p>可转债的债性与股性分析</p>
+                                </div>
+                                <i class="bi bi-arrow-right text-muted"></i>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Analyses -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-clock-history"></i> 最近分析</span>
+                <a href="/analyze" class="btn btn-sm btn-outline-primary">查看全部</a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_analyses %}
+                <div class="recent-analyses">
+                    {% for item in recent_analyses %}
+                    <div class="recent-item">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="icon" style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1e40af;">
+                                <i class="bi bi-graph-up"></i>
+                            </div>
+                            <div>
+                                <div class="fw-semibold">{{ item.symbol }}</div>
+                                <div class="text-muted small">{{ item.market }} · {{ item.created }}</div>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge-status {{ item.status }}">{{ item.status }}</span>
+                            <a href="/analyze?task_id={{ item.task_id }}" class="btn btn-sm btn-outline-primary">查看</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted p-5">
+                    <i class="bi bi-inbox fs-1 mb-3 d-block"></i>
+                    <p>暂无分析记录</p>
+                    <a href="/analyze" class="btn btn-primary">开始首次分析</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column -->
+    <div class="col-lg-4">
+        <!-- Market Overview -->
+        <div class="card mb-4">
+            <div class="card-header"><i class="bi bi-grid"></i> 市场概览</div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="market-tag stock"><i class="bi bi-building"></i> 个股</span>
+                    </div>
+                    <span class="text-muted">A股/港股/美股</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="market-tag etf"><i class="bi bi-pie-chart"></i> ETF</span>
+                    </div>
+                    <span class="text-muted">股票/债券/商品</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="market-tag futures"><i class="bi bi-graph-up-arrow"></i> 期货</span>
+                    </div>
+                    <span class="text-muted">商品/金融期货</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="market-tag convertible"><i class="bi bi-file-earmark-text"></i> 可转债</span>
+                    </div>
+                    <span class="text-muted">股债双性</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Status -->
+        <div class="card mb-4">
+            <div class="card-header"><i class="bi bi-activity"></i> 系统状态</div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-muted">LLM 模型</span>
+                    <span class="badge bg-success">{{ cfg.MODEL }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-muted">数据源</span>
+                    <span class="badge bg-primary">Tushare</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-muted">缓存记录</span>
+                    <span class="fw-semibold">{{ cache.total }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted">版本</span>
+                    <span class="fw-semibold">v0.1</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Tips -->
+        <div class="card">
+            <div class="card-header"><i class="bi bi-lightbulb"></i> 使用提示</div>
+            <div class="card-body">
+                <div class="d-flex align-items-start gap-3 mb-3">
+                    <i class="bi bi-1-circle-fill text-primary fs-5"></i>
+                    <div>
+                        <div class="fw-semibold">选择品类</div>
+                        <div class="text-muted small">支持个股、ETF、期货、可转债</div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-start gap-3 mb-3">
+                    <i class="bi bi-2-circle-fill text-primary fs-5"></i>
+                    <div>
+                        <div class="fw-semibold">输入代码</div>
+                        <div class="text-muted small">输入品种代码，如 600519</div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-start gap-3">
+                    <i class="bi bi-3-circle-fill text-primary fs-5"></i>
+                    <div>
+                        <div class="fw-semibold">等待分析</div>
+                        <div class="text-muted small">多Agent协作完成分析</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

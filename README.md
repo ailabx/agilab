@@ -2,59 +2,54 @@
 
 AgiLab，AGI实验室。
 
-<img src="images/agi.png" width="200" alt="AGI实验室界面">
+## 架构
 
-## 我们是谁，愿景和初心？
+```
+.
+├── backend/
+│   ├── server.py              # FastAPI + SSE 流式问答服务
+│   └── templates/
+│       └── chat.html          # 问答界面
+├── agents/
+│   └── router_agent.py        # 统一入口 Agent，调用 Skill 并生成报告
+├── skills/
+│   └── financial-research/    # 标准化 Skill：数据采集 → 指标计算 → 结构化输出
+│       ├── SKILL.md
+│       ├── references/
+│       │   └── analysis-framework.md
+│       └── scripts/
+│           ├── main.py        # 编排入口
+│           ├── market_data.py # 行情数据
+│           ├── technical.py   # 技术指标
+│           ├── fundamental.py # 基本面数据
+│           └── sentiment.py   # 情绪指标
+└── config.py                  # 配置（TS_TOKEN 等）
+```
 
-愿景：用前沿技术让人类生活更美好。
-价值观：自由，好奇，新奇。
+## 设计原则
 
-我们关注，前沿AGI技术，如何在生产、生活中落地。
-目前两个关注点，不排除会扩展：金融量化投资、自媒体自动化运营
+- **Skill 只做数据**：`financial-research` Skill 只负责数据采集、指标计算、结构化输出，不调 LLM。
+- **Agent 负责推理**：`router_agent.py` 调用 Skill 获取数据包，由 LLM 生成中文分析报告。
+- **标准化 CLI**：所有脚本独立可运行，输出 stdout JSON。
 
-### AGI赋能金融量化
+## 启动
 
-用前沿技术让投资更稳健。
+```bash
+.venv/Scripts/python.exe backend/server.py
+```
 
-金融是离钱最近，信息直接可以转化为钱的行业。
+访问 http://localhost:8765
 
-金融行业数据多，无论是结构化数据还是非结构化数据。
+## 支持的品类
 
-金融是信息直接可以转化为收益的行业。
+- `stock`：股票，如 `600519`
+- `etf`：ETF，如 `510300`
+- `futures`：期货，如 `RB`
+- `convertible`：可转债，如 `113052`
+- `fund`：场外基金，如 `000001`
 
-金融投资领域是高度信息密集型，而且信息相对结构化，照理讲是最适合机器计算的领域。可是，当前投资仍然处于"刀耕火种"的年代，有人忙于调研，读报表；有人忙于盯盘，画线条。
+## 测试 Skill
 
-大模型和智能体技术快速发展。
-
-但不要指望打造一台永动机。
-
-但请相信一句话就是：
-
-No man is better than a machine, but no machine is better than a man with a machine!
-
-让AI机器辅助我们投资，将无往而不利。
-
-### AGI自媒化运营
-从自媒体选题，内容自动化生产到内容创作，一站式运营平台。
-
-
-### 开发环境与安装部署
-
-python3.12+
-
-直接git或者下载源码包，安装相关依赖，然后运行main.py即可。
-
-git clone https://github.com/ailabx/agilab.git
-
-cd agilab
-
-pip install -r requirements.txt
-
-python main.py
-
-### 联系我们
-
-小鹅通店铺，体系化教学：
-![image](images/store.png)
-
-https://apppqnqmjzx1479.h5.xet.citv.cn/
+```bash
+.venv/Scripts/python skills/financial-research/scripts/main.py 600519 --market stock --days 30
+```

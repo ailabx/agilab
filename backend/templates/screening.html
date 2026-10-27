@@ -1,0 +1,445 @@
+{% extends "base.html" %}
+{% block title %}股票筛选 - AGI实验室{% endblock %}
+{% block content %}
+<!-- 页面头部 -->
+<div class="page-header mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <div class="page-icon">
+            <i class="bi bi-funnel"></i>
+        </div>
+        <div>
+            <h2 class="mb-1">股票筛选</h2>
+            <p class="text-muted mb-0">通过多维度筛选条件，快速找到符合投资策略的优质股票</p>
+        </div>
+    </div>
+</div>
+
+<!-- 筛选条件面板 -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-sliders"></i> 筛选条件</span>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary" onclick="resetFilters()">
+                <i class="bi bi-arrow-counterclockwise"></i> 重置
+            </button>
+            <button class="btn btn-sm btn-primary" onclick="applyFilters()">
+                <i class="bi bi-search"></i> 开始筛选
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <form id="screening-form">
+            <div class="row g-3">
+                <!-- 基础信息 -->
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">市场类型</label>
+                    <select class="form-select" id="filter-market">
+                        <option value="">全部市场</option>
+                        <option value="stock">A股</option>
+                        <option value="etf">ETF</option>
+                        <option value="futures">期货</option>
+                        <option value="convertible">可转债</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">行业分类</label>
+                    <select class="form-select" id="filter-industry" multiple>
+                        <option value="">全部行业</option>
+                        <option value="technology">科技</option>
+                        <option value="finance">金融</option>
+                        <option value="healthcare">医药</option>
+                        <option value="consumer">消费</option>
+                        <option value="energy">能源</option>
+                        <option value="materials">材料</option>
+                        <option value="industrial">工业</option>
+                        <option value="utilities">公用事业</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">市值范围</label>
+                    <select class="form-select" id="filter-market-cap">
+                        <option value="">全部</option>
+                        <option value="small">小盘股 (< 100亿)</option>
+                        <option value="medium">中盘股 (100-500亿)</option>
+                        <option value="large">大盘股 (> 500亿)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 财务指标 -->
+            <div class="row g-3 mt-2">
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">市盈率 (PE)</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="filter-pe-min" placeholder="最小值" step="0.01">
+                        <span class="input-group-text">-</span>
+                        <input type="number" class="form-control" id="filter-pe-max" placeholder="最大值" step="0.01">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">市净率 (PB)</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="filter-pb-min" placeholder="最小值" step="0.01">
+                        <span class="input-group-text">-</span>
+                        <input type="number" class="form-control" id="filter-pb-max" placeholder="最大值" step="0.01">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">ROE (%)</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="filter-roe-min" placeholder="最小值" step="0.01">
+                        <span class="input-group-text">-</span>
+                        <input type="number" class="form-control" id="filter-roe-max" placeholder="最大值" step="0.01">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">营收增长率 (%)</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="filter-revenue-min" placeholder="最小值" step="0.01">
+                        <span class="input-group-text">-</span>
+                        <input type="number" class="form-control" id="filter-revenue-max" placeholder="最大值" step="0.01">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 技术指标 -->
+            <div class="row g-3 mt-2">
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">RSI (14日)</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="filter-rsi-min" placeholder="最小值" min="0" max="100">
+                        <span class="input-group-text">-</span>
+                        <input type="number" class="form-control" id="filter-rsi-max" placeholder="最大值" min="0" max="100">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">MACD</label>
+                    <select class="form-select" id="filter-macd">
+                        <option value="">全部</option>
+                        <option value="bullish">金叉 ( bullish )</option>
+                        <option value="bearish">死叉 ( bearish )</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">均线排列</label>
+                    <select class="form-select" id="filter-ma">
+                        <option value="">全部</option>
+                        <option value="golden">多头排列</option>
+                        <option value="death">空头排列</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">成交量</label>
+                    <select class="form-select" id="filter-volume">
+                        <option value="">全部</option>
+                        <option value="high">放量 (> 平均1.5倍)</option>
+                        <option value="low">缩量 (< 平均0.5倍)</option>
+                    </select>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 筛选结果 -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-table"></i> 筛选结果</span>
+        <div class="d-flex gap-2">
+            <span class="text-muted" id="result-count">共 0 条结果</span>
+            <button class="btn btn-sm btn-outline-primary" onclick="exportResults()">
+                <i class="bi bi-download"></i> 导出
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="result-table">
+                <thead>
+                    <tr>
+                        <th>股票代码</th>
+                        <th>股票名称</th>
+                        <th>市场</th>
+                        <th>行业</th>
+                        <th>市值</th>
+                        <th>PE</th>
+                        <th>PB</th>
+                        <th>ROE</th>
+                        <th>RSI</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="result-table-body">
+                    <tr><td colspan="10" class="text-center text-muted py-4">点击"开始筛选"查看结果</td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- 分页 -->
+        <nav aria-label="Page navigation" class="d-flex justify-content-between align-items-center mt-3">
+            <div class="text-muted">
+                显示 <span id="screen-page-start">1</span> - <span id="screen-page-end">10</span> 条，共 <span id="screen-page-total">0</span> 条
+            </div>
+            <ul class="pagination mb-0" id="screen-pagination">
+                <!-- 动态生成 -->
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<style>
+/* 筛选页面样式 */
+.screening-page .page-icon {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+/* 结果表格 */
+#result-table th {
+    font-weight: 600;
+    color: var(--gray-600);
+    border-bottom: 2px solid var(--gray-200);
+    white-space: nowrap;
+}
+#result-table td {
+    vertical-align: middle;
+}
+
+/* 股票代码链接 */
+.stock-code-link {
+    color: var(--primary);
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+}
+.stock-code-link:hover {
+    text-decoration: underline;
+}
+
+/* 操作按钮 */
+.action-btn {
+    padding: 4px 8px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+    color: var(--gray-500);
+}
+.action-btn:hover {
+    background: var(--gray-100);
+    color: var(--primary);
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    let currentPage = 1;
+    let pageSize = 10;
+    let totalResults = 0;
+    let screeningResults = [];
+
+    // 应用筛选
+    window.applyFilters = async function() {
+        // 收集筛选条件
+        const filters = {
+            market: document.getElementById('filter-market').value,
+            industry: Array.from(document.getElementById('filter-industry').selectedOptions).map(o => o.value),
+            marketCap: document.getElementById('filter-market-cap').value,
+            peMin: document.getElementById('filter-pe-min').value,
+            peMax: document.getElementById('filter-pe-max').value,
+            pbMin: document.getElementById('filter-pb-min').value,
+            pbMax: document.getElementById('filter-pb-max').value,
+            roeMin: document.getElementById('filter-roe-min').value,
+            roeMax: document.getElementById('filter-roe-max').value,
+            rsiMin: document.getElementById('filter-rsi-min').value,
+            rsiMax: document.getElementById('filter-rsi-max').value,
+            macd: document.getElementById('filter-macd').value,
+            ma: document.getElementById('filter-ma').value,
+            volume: document.getElementById('filter-volume').value,
+        };
+
+        // 模拟筛选结果（实际应从后端API获取）
+        screeningResults = generateMockResults(filters);
+        totalResults = screeningResults.length;
+        currentPage = 1;
+        
+        renderResults();
+        updatePagination();
+    };
+
+    // 生成模拟结果
+    function generateMockResults(filters) {
+        const mockData = [];
+        const industries = ['科技', '金融', '医药', '消费', '能源', '材料', '工业', '公用事业'];
+        const markets = ['stock', 'etf', 'futures', 'convertible'];
+        
+        for (let i = 0; i < 50; i++) {
+            mockData.push({
+                code: `00000${i + 1}`.slice(-6),
+                name: `股票${i + 1}`,
+                market: markets[Math.floor(Math.random() * markets.length)],
+                industry: industries[Math.floor(Math.random() * industries.length)],
+                marketCap: Math.floor(Math.random() * 1000) + 50,
+                pe: (Math.random() * 100).toFixed(2),
+                pb: (Math.random() * 10).toFixed(2),
+                roe: (Math.random() * 30).toFixed(2),
+                rsi: Math.floor(Math.random() * 100),
+            });
+        }
+        
+        // 简单筛选逻辑
+        return mockData.filter(item => {
+            if (filters.market && item.market !== filters.market) return false;
+            if (filters.industry.length > 0 && !filters.industry.includes(item.industry)) return false;
+            if (filters.peMin && item.pe < parseFloat(filters.peMin)) return false;
+            if (filters.peMax && item.pe > parseFloat(filters.peMax)) return false;
+            if (filters.pbMin && item.pb < parseFloat(filters.pbMin)) return false;
+            if (filters.pbMax && item.pb > parseFloat(filters.pbMax)) return false;
+            return true;
+        });
+    }
+
+    // 渲染结果
+    function renderResults() {
+        const start = (currentPage - 1) * pageSize;
+        const end = Math.min(start + pageSize, totalResults);
+        const results = screeningResults.slice(start, end);
+        
+        const tbody = document.getElementById('result-table-body');
+        
+        if (results.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">暂无符合条件的结果</td></tr>';
+            document.getElementById('result-count').textContent = '共 0 条结果';
+            return;
+        }
+        
+        document.getElementById('result-count').textContent = `共 ${totalResults} 条结果`;
+        
+        tbody.innerHTML = results.map(item => `
+            <tr>
+                <td><span class="stock-code-link" onclick="analyzeStock('${item.code}')">${esc(item.code)}</span></td>
+                <td>${esc(item.name)}</td>
+                <td><span class="market-tag ${esc(item.market)}">${esc(item.market)}</span></td>
+                <td>${esc(item.industry)}</td>
+                <td>${item.marketCap}亿</td>
+                <td>${item.pe}</td>
+                <td>${item.pb}</td>
+                <td>${item.roe}%</td>
+                <td>${item.rsi}</td>
+                <td>
+                    <div class="d-flex gap-1">
+                        <button class="action-btn" onclick="analyzeStock('${item.code}')" title="分析">
+                            <i class="bi bi-graph-up text-primary"></i>
+                        </button>
+                        <button class="action-btn" onclick="addToFavorites('${item.code}')" title="加入自选">
+                            <i class="bi bi-star text-warning"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+        
+        // 更新分页信息
+        document.getElementById('screen-page-start').textContent = start + 1;
+        document.getElementById('screen-page-end').textContent = end;
+        document.getElementById('screen-page-total').textContent = totalResults;
+    }
+
+    // 更新分页
+    function updatePagination() {
+        const totalPages = Math.ceil(totalResults / pageSize);
+        const pagination = document.getElementById('screen-pagination');
+        
+        if (totalPages <= 1) {
+            pagination.innerHTML = '';
+            return;
+        }
+        
+        let html = '';
+        
+        // 上一页
+        html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">上一页</a>
+        </li>`;
+        
+        // 页码
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+                html += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+                    <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+                </li>`;
+            } else if (i === currentPage - 3 || i === currentPage + 3) {
+                html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+        }
+        
+        // 下一页
+        html += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">下一页</a>
+        </li>`;
+        
+        pagination.innerHTML = html;
+    }
+
+    // 切换页面
+    window.changePage = function(page) {
+        if (page < 1 || page > Math.ceil(totalResults / pageSize)) return;
+        currentPage = page;
+        renderResults();
+        updatePagination();
+    };
+
+    // 重置筛选
+    window.resetFilters = function() {
+        document.getElementById('screening-form').reset();
+        screeningResults = [];
+        totalResults = 0;
+        currentPage = 1;
+        document.getElementById('result-table-body').innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">点击"开始筛选"查看结果</td></tr>';
+        document.getElementById('result-count').textContent = '共 0 条结果';
+        document.getElementById('screen-pagination').innerHTML = '';
+    };
+
+    // 分析股票
+    window.analyzeStock = function(code) {
+        window.location.href = `/single-analysis?code=${code}`;
+    };
+
+    // 加入自选
+    window.addToFavorites = function(code) {
+        alert(`已将 ${code} 加入自选（功能开发中）`);
+    };
+
+    // 导出结果
+    window.exportResults = function() {
+        if (screeningResults.length === 0) {
+            alert('没有可导出的结果');
+            return;
+        }
+        
+        // 生成CSV
+        const headers = ['股票代码', '股票名称', '市场', '行业', '市值', 'PE', 'PB', 'ROE', 'RSI'];
+        const rows = screeningResults.map(item => [
+            item.code, item.name, item.market, item.industry,
+            item.marketCap, item.pe, item.pb, item.roe, item.rsi
+        ]);
+        
+        const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'screening_results.csv';
+        link.click();
+    };
+
+    // 工具函数
+    function esc(s) {
+        if (!s) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+})();
+</script>
+{% endblock %}

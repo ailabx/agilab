@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+{% block title %}学习中心 - AGI实验室{% endblock %}
+{% block content %}
+<!-- 页面头部 -->
+<div class="page-header mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <div class="page-icon">
+            <i class="bi bi-book"></i>
+        </div>
+        <div>
+            <h2 class="mb-1">学习中心</h2>
+            <p class="text-muted mb-0">学习AI股票分析的核心知识和实战技巧</p>
+        </div>
+    </div>
+</div>
+
+<!-- 学习路径 -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div class="learning-icon mb-3">
+                    <i class="bi bi-robot"></i>
+                </div>
+                <h5>AI基础知识</h5>
+                <p class="text-muted">了解人工智能、大语言模型的基本原理和应用场景</p>
+                <div class="progress mb-3">
+                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                </div>
+                <button class="btn btn-outline-primary" onclick="startLearning('ai-basics')">
+                    <i class="bi bi-play-fill"></i> 开始学习
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div class="learning-icon mb-3">
+                    <i class="bi bi-chat-square-text"></i>
+                </div>
+                <h5>提示词工程</h5>
+                <p class="text-muted">掌握如何编写高效的AI提示词，提升分析质量</p>
+                <div class="progress mb-3">
+                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                </div>
+                <button class="btn btn-outline-primary" onclick="startLearning('prompt-engineering')">
+                    <i class="bi bi-play-fill"></i> 开始学习
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div class="learning-icon mb-3">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </div>
+                <h5>实战教程</h5>
+                <p class="text-muted">通过实际案例学习如何使用AI进行股票分析</p>
+                <div class="progress mb-3">
+                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                </div>
+                <button class="btn btn-outline-primary" onclick="startLearning('practical')">
+                    <i class="bi bi-play-fill"></i> 开始学习
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 学习资源 -->
+<div class="card">
+    <div class="card-header"><i class="bi bi-collection"></i> 学习资源</div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="resource-card">
+                    <div class="resource-icon">
+                        <i class="bi bi-file-earmark-text"></i>
+                    </div>
+                    <div class="resource-content">
+                        <h6>快速入门指南</h6>
+                        <p class="text-muted mb-0">5分钟了解AGI实验室的基本使用方法</p>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="openResource('quickstart')">
+                        <i class="bi bi-eye"></i> 查看
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="resource-card">
+                    <div class="resource-icon">
+                        <i class="bi bi-youtube"></i>
+                    </div>
+                    <div class="resource-content">
+                        <h6>视频教程</h6>
+                        <p class="text-muted mb-0">观看详细的操作演示视频</p>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="openResource('videos')">
+                        <i class="bi bi-play-fill"></i> 播放
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="resource-card">
+                    <div class="resource-icon">
+                        <i class="bi bi-journal-text"></i>
+                    </div>
+                    <div class="resource-content">
+                        <h6>API文档</h6>
+                        <p class="text-muted mb-0">了解如何使用API进行程序化操作</p>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="openResource('api')">
+                        <i class="bi bi-eye"></i> 查看
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="resource-card">
+                    <div class="resource-icon">
+                        <i class="bi bi-question-circle"></i>
+                    </div>
+                    <div class="resource-content">
+                        <h6>常见问题</h6>
+                        <p class="text-muted mb-0">查看常见问题的解答</p>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="openResource('faq')">
+                        <i class="bi bi-eye"></i> 查看
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 学习弹窗 -->
+<div class="modal fade" id="learningModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="learning-title">学习内容</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="learning-content">
+                <!-- 动态生成 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* 学习中心样式 */
+.learning-page .page-icon {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+
+/* 学习图标 */
+.learning-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 32px;
+    margin: 0 auto;
+}
+
+/* 资源卡片 */
+.resource-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    transition: all 0.2s;
+}
+.resource-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
+}
+.resource-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--primary-light), var(--primary));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+    flex-shrink: 0;
+}
+.resource-content {
+    flex: 1;
+}
+.resource-content h6 {
+    margin: 0 0 4px;
+    font-weight: 600;
+}
+.resource-content p {
+    margin: 0;
+    font-size: 13px;
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    // 学习内容数据
+    const learningContent = {
+        'ai-basics': {
+            title: 'AI基础知识',
+            content: `
+                <h6>什么是人工智能？</h6>
+                <p>人工智能（AI）是指由人制造出来的系统所表现出来的智能。通过机器学习、深度学习等技术，AI可以模拟人类的认知功能，如学习、推理、感知等。</p>
+                
+                <h6>大语言模型</h6>
+                <p>大语言模型（LLM）是一种基于深度学习的自然语言处理模型，通过海量文本数据训练，能够理解和生成人类语言。常见的LLM包括GPT、Claude、Kimi等。</p>
+                
+                <h6>AI在股票分析中的应用</h6>
+                <p>AI可以通过分析历史数据、新闻情绪、技术指标等多维度信息，辅助投资者做出更明智的决策。AGI实验室利用多智能体协作，提供全面的股票分析服务。</p>
+            `
+        },
+        'prompt-engineering': {
+            title: '提示词工程',
+            content: `
+                <h6>什么是提示词工程？</h6>
+                <p>提示词工程是指设计和优化输入给AI模型的文本提示，以获得更准确、更有用的输出结果。</p>
+                
+                <h6>提示词设计原则</h6>
+                <ul>
+                    <li><strong>明确性：</strong>清晰表达你的需求</li>
+                    <li><strong>具体性：</strong>提供足够的上下文信息</li>
+                    <li><strong>结构化：</strong>使用结构化的格式组织信息</li>
+                    <li><strong>迭代优化：</strong>根据结果不断调整提示词</li>
+                </ul>
+                
+                <h6>股票分析提示词示例</h6>
+                <pre>分析股票 {代码} 的投资价值，考虑以下因素：
+- 技术面的支撑和阻力位
+- 基本面的财务状况
+- 行业前景和竞争优势
+- 风险因素
+
+请给出明确的投资建议。</pre>
+            `
+        },
+        'practical': {
+            title: '实战教程',
+            content: `
+                <h6>第一步：选择分析目标</h6>
+                <p>在单股分析页面输入股票代码，选择市场类型和分析深度。</p>
+                
+                <h6>第二步：配置分析参数</h6>
+                <p>选择分析师团队、AI模型等高级配置选项。</p>
+                
+                <h6>第三步：查看分析结果</h6>
+                <p>等待分析完成后，查看多维度分析报告和交易建议。</p>
+                
+                <h6>第四步：模拟交易练习</h6>
+                <p>在模拟交易页面使用虚拟资金练习交易，验证分析效果。</p>
+            `
+        },
+        'quickstart': {
+            title: '快速入门指南',
+            content: `
+                <h6>欢迎使用AGI实验室</h6>
+                <p>AGI实验室是一个基于多智能体协作的AI股票分析平台，帮助您做出更明智的投资决策。</p>
+                
+                <h6>核心功能</h6>
+                <ul>
+                    <li><strong>单股分析：</strong>深度分析单只股票的投资价值</li>
+                    <li><strong>股票筛选：</strong>多维度筛选符合条件的股票</li>
+                    <li><strong>自选股管理：</strong>跟踪关注的股票</li>
+                    <li><strong>模拟交易：</strong>使用虚拟资金练习交易</li>
+                </ul>
+                
+                <h6>开始使用</h6>
+                <p>点击左侧菜单的"单股分析"，输入股票代码即可开始分析。</p>
+            `
+        },
+        'videos': {
+            title: '视频教程',
+            content: `
+                <p class="text-muted">视频教程正在制作中，敬请期待...</p>
+            `
+        },
+        'api': {
+            title: 'API文档',
+            content: `
+                <h6>API接口</h6>
+                <p>AGI实验室提供以下API接口：</p>
+                
+                <h6>启动分析</h6>
+                <pre>POST /analyze
+Content-Type: application/x-www-form-urlencoded
+
+market=stock&symbol=600519</pre>
+                
+                <h6>查询任务状态</h6>
+                <pre>GET /api/analyze/{task_id}</pre>
+                
+                <h6>列出所有任务</h6>
+                <pre>GET /api/tasks</pre>
+            `
+        },
+        'faq': {
+            title: '常见问题',
+            content: `
+                <h6>Q: 分析需要多长时间？</h6>
+                <p>A: 根据分析深度不同，通常需要2-16分钟。</p>
+                
+                <h6>Q: 支持哪些市场？</h6>
+                <p>A: 目前支持A股、ETF、期货、可转债。</p>
+                
+                <h6>Q: 分析结果准确吗？</h6>
+                <p>A: AI分析仅供参考，不构成投资建议。请结合自身判断做出决策。</p>
+                
+                <h6>Q: 如何保存分析结果？</h6>
+                <p>A: 分析完成后可以下载Markdown格式的报告。</p>
+            `
+        }
+    };
+
+    // 开始学习
+    window.startLearning = function(courseId) {
+        const course = learningContent[courseId];
+        if (!course) return;
+        
+        document.getElementById('learning-title').textContent = course.title;
+        document.getElementById('learning-content').innerHTML = course.content;
+        
+        const modal = new bootstrap.Modal(document.getElementById('learningModal'));
+        modal.show();
+    };
+
+    // 打开资源
+    window.openResource = function(resourceId) {
+        startLearning(resourceId);
+    };
+})();
+</script>
+{% endblock %}

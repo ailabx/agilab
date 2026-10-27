@@ -1,0 +1,443 @@
+{% extends "base.html" %}
+{% block title %}模拟交易 - AGI实验室{% endblock %}
+{% block content %}
+<!-- 页面头部 -->
+<div class="page-header mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <div class="page-icon">
+            <i class="bi bi-cash-coin"></i>
+        </div>
+        <div>
+            <h2 class="mb-1">模拟交易</h2>
+            <p class="text-muted mb-0">虚拟资金练习交易，提升投资技能</p>
+        </div>
+    </div>
+</div>
+
+<!-- 风险提示 -->
+<div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    <div>
+        <strong>风险提示：</strong>本功能为模拟交易工具，使用虚拟资金，不涉及真实资金交易，仅供学习和练习使用。
+    </div>
+</div>
+
+<!-- 账户概览 -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="icon bg-primary bg-opacity-10 text-primary">
+                <i class="bi bi-wallet2"></i>
+            </div>
+            <div class="num" id="account-cash">¥100,000.00</div>
+            <div class="label">可用资金</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="icon bg-success bg-opacity-10 text-success">
+                <i class="bi bi-graph-up-arrow"></i>
+            </div>
+            <div class="num" id="account-value">¥0.00</div>
+            <div class="label">持仓市值</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="icon bg-info bg-opacity-10 text-info">
+                <i class="bi bi-piggy-bank"></i>
+            </div>
+            <div class="num" id="account-total">¥100,000.00</div>
+            <div class="label">总资产</div>
+        </div>
+    </div>
+</div>
+
+<!-- 持仓和交易 -->
+<div class="row">
+    <!-- 持仓列表 -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-list-ul"></i> 持仓列表</span>
+                <button class="btn btn-sm btn-outline-secondary" onclick="refreshPositions()">
+                    <i class="bi bi-arrow-clockwise"></i> 刷新
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="positions-table">
+                        <thead>
+                            <tr>
+                                <th>股票代码</th>
+                                <th>股票名称</th>
+                                <th>持仓数量</th>
+                                <th>成本价</th>
+                                <th>当前价</th>
+                                <th>盈亏</th>
+                                <th>盈亏率</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="positions-table-body">
+                            <!-- 动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 下单面板 -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-cart-plus"></i> 快速下单</div>
+            <div class="card-body">
+                <form id="order-form">
+                    <div class="mb-3">
+                        <label class="form-label">股票代码</label>
+                        <input type="text" class="form-control" id="order-code" placeholder="如：600519">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">操作类型</label>
+                        <select class="form-select" id="order-type">
+                            <option value="buy">买入</option>
+                            <option value="sell">卖出</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">数量</label>
+                        <input type="number" class="form-control" id="order-quantity" placeholder="100" min="100" step="100">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">价格</label>
+                        <input type="number" class="form-control" id="order-price" placeholder="市价" step="0.01">
+                        <div class="form-text">留空按市价成交</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-check-lg"></i> 确认下单
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- 交易记录 -->
+        <div class="card mt-4">
+            <div class="card-header"><i class="bi bi-clock-history"></i> 最近交易</div>
+            <div class="card-body">
+                <div id="recent-trades">
+                    <p class="text-muted text-center mb-0">暂无交易记录</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* 模拟交易样式 */
+.paper-trading-page .page-icon {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+/* 持仓表格 */
+#positions-table th {
+    font-weight: 600;
+    color: var(--gray-600);
+    border-bottom: 2px solid var(--gray-200);
+    white-space: nowrap;
+}
+#positions-table td {
+    vertical-align: middle;
+}
+
+/* 盈亏颜色 */
+.profit {
+    color: #dc2626;
+    font-weight: 600;
+}
+.loss {
+    color: #16a34a;
+    font-weight: 600;
+}
+
+/* 操作按钮 */
+.action-btn {
+    padding: 4px 8px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+    color: var(--gray-500);
+}
+.action-btn:hover {
+    background: var(--gray-100);
+    color: var(--primary);
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    let positions = [];
+    let trades = [];
+    let cash = 100000;
+    
+    // 加载持仓
+    function loadPositions() {
+        // 模拟持仓数据
+        positions = generateMockPositions();
+        renderPositions();
+        updateAccountSummary();
+    }
+    
+    // 生成模拟持仓
+    function generateMockPositions() {
+        return [
+            {
+                code: '600519',
+                name: '贵州茅台',
+                quantity: 100,
+                costPrice: 1680.00,
+                currentPrice: 1750.00,
+            },
+            {
+                code: '000001',
+                name: '平安银行',
+                quantity: 1000,
+                costPrice: 12.50,
+                currentPrice: 13.20,
+            },
+            {
+                code: '002415',
+                name: '海康威视',
+                quantity: 500,
+                costPrice: 35.00,
+                currentPrice: 33.80,
+            }
+        ];
+    }
+    
+    // 渲染持仓
+    function renderPositions() {
+        const tbody = document.getElementById('positions-table-body');
+        
+        if (positions.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">暂无持仓</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = positions.map(pos => {
+            const profit = (pos.currentPrice - pos.costPrice) * pos.quantity;
+            const profitRate = ((pos.currentPrice - pos.costPrice) / pos.costPrice * 100).toFixed(2);
+            const profitClass = profit >= 0 ? 'profit' : 'loss';
+            const profitIcon = profit >= 0 ? '▲' : '▼';
+            
+            return `<tr>
+                <td>${esc(pos.code)}</td>
+                <td>${esc(pos.name)}</td>
+                <td>${pos.quantity}</td>
+                <td>¥${pos.costPrice.toFixed(2)}</td>
+                <td>¥${pos.currentPrice.toFixed(2)}</td>
+                <td class="${profitClass}">${profitIcon} ¥${Math.abs(profit).toFixed(2)}</td>
+                <td class="${profitClass}">${profitRate}%</td>
+                <td>
+                    <div class="d-flex gap-1">
+                        <button class="action-btn" onclick="sellStock('${pos.code}')" title="卖出">
+                            <i class="bi bi-cart-dash text-danger"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+    
+    // 更新账户概览
+    function updateAccountSummary() {
+        const positionsValue = positions.reduce((sum, pos) => sum + (pos.currentPrice * pos.quantity), 0);
+        const total = cash + positionsValue;
+        
+        document.getElementById('account-cash').textContent = `¥${cash.toFixed(2)}`;
+        document.getElementById('account-value').textContent = `¥${positionsValue.toFixed(2)}`;
+        document.getElementById('account-total').textContent = `¥${total.toFixed(2)}`;
+    }
+    
+    // 刷新持仓
+    window.refreshPositions = function() {
+        loadPositions();
+    };
+    
+    // 卖出股票
+    window.sellStock = function(code) {
+        const pos = positions.find(p => p.code === code);
+        if (!pos) return;
+        
+        const quantity = prompt(`请输入卖出数量 (持仓: ${pos.quantity}):`);
+        if (!quantity || isNaN(quantity)) return;
+        
+        const qty = parseInt(quantity);
+        if (qty > pos.quantity) {
+            alert('卖出数量不能超过持仓数量');
+            return;
+        }
+        
+        // 计算卖出金额
+        const sellAmount = pos.currentPrice * qty;
+        cash += sellAmount;
+        
+        // 更新持仓
+        pos.quantity -= qty;
+        if (pos.quantity === 0) {
+            positions = positions.filter(p => p.code !== code);
+        }
+        
+        // 记录交易
+        trades.push({
+            code: code,
+            name: pos.name,
+            type: 'sell',
+            quantity: qty,
+            price: pos.currentPrice,
+            time: new Date().toLocaleString('zh-CN'),
+        });
+        
+        renderPositions();
+        updateAccountSummary();
+        renderRecentTrades();
+        
+        alert(`卖出成功: ${pos.name} ${qty}股 @ ¥${pos.currentPrice.toFixed(2)}`);
+    };
+    
+    // 渲染最近交易
+    function renderRecentTrades() {
+        const container = document.getElementById('recent-trades');
+        
+        if (trades.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center mb-0">暂无交易记录</p>';
+            return;
+        }
+        
+        container.innerHTML = trades.slice(-5).reverse().map(trade => `
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                <div>
+                    <span class="fw-semibold">${esc(trade.name)}</span>
+                    <span class="badge ${trade.type === 'buy' ? 'bg-success' : 'bg-danger'} ms-2">
+                        ${trade.type === 'buy' ? '买入' : '卖出'}
+                    </span>
+                </div>
+                <div class="text-end">
+                    <div>${trade.quantity}股 @ ¥${trade.price.toFixed(2)}</div>
+                    <small class="text-muted">${trade.time}</small>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    // 下单表单
+    document.getElementById('order-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const code = document.getElementById('order-code').value.trim();
+        const type = document.getElementById('order-type').value;
+        const quantity = parseInt(document.getElementById('order-quantity').value);
+        const price = parseFloat(document.getElementById('order-price').value) || 100; // 默认价格
+        
+        if (!code || !quantity) {
+            alert('请填写完整的订单信息');
+            return;
+        }
+        
+        if (type === 'buy') {
+            // 买入
+            const totalCost = price * quantity;
+            if (totalCost > cash) {
+                alert('资金不足');
+                return;
+            }
+            
+            cash -= totalCost;
+            
+            // 添加到持仓
+            const existingPos = positions.find(p => p.code === code);
+            if (existingPos) {
+                existingPos.quantity += quantity;
+                existingPos.costPrice = (existingPos.costPrice * existingPos.quantity + price * quantity) / (existingPos.quantity + quantity);
+            } else {
+                positions.push({
+                    code: code,
+                    name: `股票${code}`,
+                    quantity: quantity,
+                    costPrice: price,
+                    currentPrice: price,
+                });
+            }
+            
+            // 记录交易
+            trades.push({
+                code: code,
+                name: `股票${code}`,
+                type: 'buy',
+                quantity: quantity,
+                price: price,
+                time: new Date().toLocaleString('zh-CN'),
+            });
+            
+            alert(`买入成功: ${code} ${quantity}股 @ ¥${price.toFixed(2)}`);
+        } else {
+            // 卖出
+            const pos = positions.find(p => p.code === code);
+            if (!pos) {
+                alert('没有该股票的持仓');
+                return;
+            }
+            
+            if (quantity > pos.quantity) {
+                alert('卖出数量不能超过持仓数量');
+                return;
+            }
+            
+            const sellAmount = price * quantity;
+            cash += sellAmount;
+            
+            pos.quantity -= quantity;
+            if (pos.quantity === 0) {
+                positions = positions.filter(p => p.code !== code);
+            }
+            
+            // 记录交易
+            trades.push({
+                code: code,
+                name: pos.name,
+                type: 'sell',
+                quantity: quantity,
+                price: price,
+                time: new Date().toLocaleString('zh-CN'),
+            });
+            
+            alert(`卖出成功: ${pos.name} ${quantity}股 @ ¥${price.toFixed(2)}`);
+        }
+        
+        renderPositions();
+        updateAccountSummary();
+        renderRecentTrades();
+        
+        // 清空表单
+        document.getElementById('order-code').value = '';
+        document.getElementById('order-quantity').value = '';
+        document.getElementById('order-price').value = '';
+    });
+    
+    // 工具函数
+    function esc(s) {
+        if (!s) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    
+    // 页面加载时加载持仓
+    loadPositions();
+    renderRecentTrades();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,457 @@
+{% extends "base.html" %}
+{% block title %}自选股 - AGI实验室{% endblock %}
+{% block content %}
+<!-- 页面头部 -->
+<div class="page-header mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <div class="page-icon">
+            <i class="bi bi-star"></i>
+        </div>
+        <div>
+            <h2 class="mb-1">我的自选股</h2>
+            <p class="text-muted mb-0">管理您关注的股票，实时跟踪行情变化</p>
+        </div>
+    </div>
+</div>
+
+<!-- 操作栏 -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">搜索股票</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="search-keyword" placeholder="输入股票代码或名称">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">市场筛选</label>
+                <select class="form-select" id="filter-market">
+                    <option value="">全部市场</option>
+                    <option value="stock">A股</option>
+                    <option value="etf">ETF</option>
+                    <option value="futures">期货</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">标签筛选</label>
+                <select class="form-select" id="filter-tag">
+                    <option value="">全部标签</option>
+                    <option value="watch">观察中</option>
+                    <option value="hold">持有中</option>
+                    <option value="target">目标股</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary w-100" onclick="addFavorite()">
+                    <i class="bi bi-plus-lg"></i> 添加自选
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 自选股列表 -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-table"></i> 自选股列表</span>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary" onclick="syncRealtime()">
+                <i class="bi bi-arrow-clockwise"></i> 同步实时行情
+            </button>
+            <button class="btn btn-sm btn-outline-primary" onclick="batchAnalyze()">
+                <i class="bi bi-graph-up"></i> 批量分析
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="favorites-table">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="select-all" onchange="toggleSelectAll()"></th>
+                        <th>股票代码</th>
+                        <th>股票名称</th>
+                        <th>市场</th>
+                        <th>当前价</th>
+                        <th>涨跌幅</th>
+                        <th>市值</th>
+                        <th>标签</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="favorites-table-body">
+                    <!-- 动态生成 -->
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- 分页 -->
+        <nav aria-label="Page navigation" class="d-flex justify-content-between align-items-center mt-3">
+            <div class="text-muted">
+                显示 <span id="fav-page-start">1</span> - <span id="fav-page-end">10</span> 条，共 <span id="fav-page-total">0</span> 条
+            </div>
+            <ul class="pagination mb-0" id="fav-pagination">
+                <!-- 动态生成 -->
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<!-- 添加自选弹窗 -->
+<div class="modal fade" id="addFavoriteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-plus-circle"></i> 添加自选股</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">股票代码</label>
+                    <input type="text" class="form-control" id="add-stock-code" placeholder="如：600519">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">标签</label>
+                    <select class="form-select" id="add-stock-tag">
+                        <option value="watch">观察中</option>
+                        <option value="hold">持有中</option>
+                        <option value="target">目标股</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="confirmAddFavorite()">添加</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* 自选股样式 */
+.favorites-page .page-icon {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+/* 涨跌幅颜色 */
+.price-up {
+    color: #dc2626;
+    font-weight: 600;
+}
+.price-down {
+    color: #16a34a;
+    font-weight: 600;
+}
+.price-neutral {
+    color: var(--gray-500);
+}
+
+/* 标签样式 */
+.tag-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.tag-badge.watch {
+    background: #dbeafe;
+    color: #1e40af;
+}
+.tag-badge.hold {
+    background: #dcfce7;
+    color: #166534;
+}
+.tag-badge.target {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+/* 表格样式 */
+#favorites-table th {
+    font-weight: 600;
+    color: var(--gray-600);
+    border-bottom: 2px solid var(--gray-200);
+    white-space: nowrap;
+}
+#favorites-table td {
+    vertical-align: middle;
+}
+
+/* 股票代码链接 */
+.stock-code-link {
+    color: var(--primary);
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+}
+.stock-code-link:hover {
+    text-decoration: underline;
+}
+
+/* 操作按钮 */
+.action-btn {
+    padding: 4px 8px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+    color: var(--gray-500);
+}
+.action-btn:hover {
+    background: var(--gray-100);
+    color: var(--primary);
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    let currentPage = 1;
+    let pageSize = 10;
+    let totalFavorites = 0;
+    let favorites = [];
+    let selectedStocks = new Set();
+
+    // 加载自选股
+    async function loadFavorites() {
+        // 模拟数据
+        favorites = generateMockFavorites();
+        totalFavorites = favorites.length;
+        renderFavorites();
+        updatePagination();
+    }
+
+    // 生成模拟自选股
+    function generateMockFavorites() {
+        const mockData = [];
+        const tags = ['watch', 'hold', 'target'];
+        const markets = ['stock', 'etf', 'futures'];
+        
+        for (let i = 0; i < 25; i++) {
+            const changePercent = (Math.random() * 10 - 5).toFixed(2);
+            mockData.push({
+                code: `00000${i + 1}`.slice(-6),
+                name: `股票${i + 1}`,
+                market: markets[Math.floor(Math.random() * markets.length)],
+                price: (Math.random() * 100 + 10).toFixed(2),
+                changePercent: changePercent,
+                marketCap: Math.floor(Math.random() * 1000) + 50,
+                tag: tags[Math.floor(Math.random() * tags.length)],
+            });
+        }
+        return mockData;
+    }
+
+    // 渲染自选股
+    function renderFavorites() {
+        const start = (currentPage - 1) * pageSize;
+        const end = Math.min(start + pageSize, totalFavorites);
+        const items = favorites.slice(start, end);
+        
+        const tbody = document.getElementById('favorites-table-body');
+        
+        if (items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">暂无自选股</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = items.map(item => {
+            const changeClass = item.changePercent > 0 ? 'price-up' : item.changePercent < 0 ? 'price-down' : 'price-neutral';
+            const changeIcon = item.changePercent > 0 ? '▲' : item.changePercent < 0 ? '▼' : '−';
+            const tagClass = item.tag;
+            const tagText = item.tag === 'watch' ? '观察中' : item.tag === 'hold' ? '持有中' : '目标股';
+            
+            return `<tr>
+                <td><input type="checkbox" class="stock-checkbox" value="${item.code}" onchange="toggleSelect('${item.code}')"></td>
+                <td><span class="stock-code-link" onclick="analyzeStock('${item.code}')">${esc(item.code)}</span></td>
+                <td>${esc(item.name)}</td>
+                <td><span class="market-tag ${esc(item.market)}">${esc(item.market)}</span></td>
+                <td class="fw-semibold">¥${item.price}</td>
+                <td class="${changeClass}">${changeIcon} ${Math.abs(item.changePercent)}%</td>
+                <td>${item.marketCap}亿</td>
+                <td><span class="tag-badge ${tagClass}">${tagText}</span></td>
+                <td>
+                    <div class="d-flex gap-1">
+                        <button class="action-btn" onclick="analyzeStock('${item.code}')" title="分析">
+                            <i class="bi bi-graph-up text-primary"></i>
+                        </button>
+                        <button class="action-btn" onclick="editTag('${item.code}')" title="编辑标签">
+                            <i class="bi bi-tag text-info"></i>
+                        </button>
+                        <button class="action-btn" onclick="removeFavorite('${item.code}')" title="删除">
+                            <i class="bi bi-trash text-danger"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+        
+        // 更新分页信息
+        document.getElementById('fav-page-start').textContent = start + 1;
+        document.getElementById('fav-page-end').textContent = end;
+        document.getElementById('fav-page-total').textContent = totalFavorites;
+    }
+
+    // 更新分页
+    function updatePagination() {
+        const totalPages = Math.ceil(totalFavorites / pageSize);
+        const pagination = document.getElementById('fav-pagination');
+        
+        if (totalPages <= 1) {
+            pagination.innerHTML = '';
+            return;
+        }
+        
+        let html = '';
+        
+        // 上一页
+        html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">上一页</a>
+        </li>`;
+        
+        // 页码
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+                html += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+                    <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+                </li>`;
+            } else if (i === currentPage - 3 || i === currentPage + 3) {
+                html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+        }
+        
+        // 下一页
+        html += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">下一页</a>
+        </li>`;
+        
+        pagination.innerHTML = html;
+    }
+
+    // 切换页面
+    window.changePage = function(page) {
+        if (page < 1 || page > Math.ceil(totalFavorites / pageSize)) return;
+        currentPage = page;
+        renderFavorites();
+        updatePagination();
+    };
+
+    // 全选/取消全选
+    window.toggleSelectAll = function() {
+        const selectAll = document.getElementById('select-all').checked;
+        document.querySelectorAll('.stock-checkbox').forEach(cb => {
+            cb.checked = selectAll;
+            if (selectAll) {
+                selectedStocks.add(cb.value);
+            } else {
+                selectedStocks.delete(cb.value);
+            }
+        });
+    };
+
+    // 选择单个
+    window.toggleSelect = function(code) {
+        if (selectedStocks.has(code)) {
+            selectedStocks.delete(code);
+        } else {
+            selectedStocks.add(code);
+        }
+    };
+
+    // 添加自选
+    window.addFavorite = function() {
+        const modal = new bootstrap.Modal(document.getElementById('addFavoriteModal'));
+        modal.show();
+    };
+
+    // 确认添加自选
+    window.confirmAddFavorite = function() {
+        const code = document.getElementById('add-stock-code').value.trim();
+        const tag = document.getElementById('add-stock-tag').value;
+        
+        if (!code) {
+            alert('请输入股票代码');
+            return;
+        }
+        
+        // 添加到列表
+        favorites.push({
+            code: code,
+            name: `股票${code}`,
+            market: 'stock',
+            price: (Math.random() * 100 + 10).toFixed(2),
+            changePercent: (Math.random() * 10 - 5).toFixed(2),
+            marketCap: Math.floor(Math.random() * 1000) + 50,
+            tag: tag,
+        });
+        
+        totalFavorites = favorites.length;
+        renderFavorites();
+        updatePagination();
+        
+        // 关闭弹窗
+        bootstrap.Modal.getInstance(document.getElementById('addFavoriteModal')).hide();
+        
+        // 清空输入
+        document.getElementById('add-stock-code').value = '';
+    };
+
+    // 删除自选
+    window.removeFavorite = function(code) {
+        if (!confirm('确定要删除该自选股吗？')) return;
+        favorites = favorites.filter(f => f.code !== code);
+        totalFavorites = favorites.length;
+        renderFavorites();
+        updatePagination();
+    };
+
+    // 编辑标签
+    window.editTag = function(code) {
+        const newTag = prompt('请输入新标签 (watch/hold/target):');
+        if (!newTag) return;
+        
+        const item = favorites.find(f => f.code === code);
+        if (item) {
+            item.tag = newTag;
+            renderFavorites();
+        }
+    };
+
+    // 分析股票
+    window.analyzeStock = function(code) {
+        window.location.href = `/single-analysis?code=${code}`;
+    };
+
+    // 同步实时行情
+    window.syncRealtime = function() {
+        alert('同步实时行情功能开发中...');
+    };
+
+    // 批量分析
+    window.batchAnalyze = function() {
+        if (selectedStocks.size === 0) {
+            alert('请先选择要分析的股票');
+            return;
+        }
+        alert(`批量分析 ${selectedStocks.size} 只股票（功能开发中）`);
+    };
+
+    // 工具函数
+    function esc(s) {
+        if (!s) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // 页面加载时加载自选股
+    loadFavorites();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,527 @@
+{% extends "base.html" %}
+{% block title %}分析报告 - AGI实验室{% endblock %}
+{% block content %}
+<!-- 页面头部 -->
+<div class="page-header mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <div class="page-icon">
+            <i class="bi bi-file-earmark-text"></i>
+        </div>
+        <div>
+            <h2 class="mb-1">分析报告</h2>
+            <p class="text-muted mb-0">查看和管理所有分析生成的报告</p>
+        </div>
+    </div>
+</div>
+
+<!-- 统计卡片 -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="icon bg-primary bg-opacity-10 text-primary">
+                <i class="bi bi-file-earmark-text"></i>
+            </div>
+            <div class="num" id="stat-total-reports">0</div>
+            <div class="label">总报告数</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="icon bg-success bg-opacity-10 text-success">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div class="num" id="stat-completed-reports">0</div>
+            <div class="label">已完成</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="icon bg-warning bg-opacity-10 text-warning">
+                <i class="bi bi-clock"></i>
+            </div>
+            <div class="num" id="stat-pending-reports">0</div>
+            <div class="label">进行中</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="icon bg-info bg-opacity-10 text-info">
+                <i class="bi bi-download"></i>
+            </div>
+            <div class="num" id="stat-downloads">0</div>
+            <div class="label">下载次数</div>
+        </div>
+    </div>
+</div>
+
+<!-- 报告列表 -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-table"></i> 报告列表</span>
+        <div class="d-flex gap-2">
+            <input type="text" class="form-control form-control-sm" id="search-report" placeholder="搜索报告..." style="width: 200px;">
+            <select class="form-select form-select-sm" id="filter-status" style="width: 120px;">
+                <option value="">全部状态</option>
+                <option value="completed">已完成</option>
+                <option value="pending">进行中</option>
+                <option value="failed">失败</option>
+            </select>
+            <button class="btn btn-sm btn-outline-secondary" onclick="loadReports()">
+                <i class="bi bi-arrow-clockwise"></i> 刷新
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="reports-table">
+                <thead>
+                    <tr>
+                        <th>报告ID</th>
+                        <th>股票代码</th>
+                        <th>股票名称</th>
+                        <th>市场</th>
+                        <th>状态</th>
+                        <th>决策</th>
+                        <th>置信度</th>
+                        <th>风险</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="reports-table-body">
+                    <tr><td colspan="10" class="text-center text-muted py-4">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- 分页 -->
+        <nav aria-label="Page navigation" class="d-flex justify-content-between align-items-center mt-3">
+            <div class="text-muted">
+                显示 <span id="report-page-start">1</span> - <span id="report-page-end">10</span> 条，共 <span id="report-page-total">0</span> 条
+            </div>
+            <ul class="pagination mb-0" id="report-pagination">
+                <!-- 动态生成 -->
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<!-- 报告详情弹窗 -->
+<div class="modal fade" id="reportDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-file-earmark-text"></i> 报告详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="report-detail-content">
+                <!-- 动态生成 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" onclick="downloadCurrentReport()">
+                    <i class="bi bi-download"></i> 下载报告
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* 报告页面样式 */
+.reports-page .page-icon {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+/* 报告表格 */
+#reports-table th {
+    font-weight: 600;
+    color: var(--gray-600);
+    border-bottom: 2px solid var(--gray-200);
+    white-space: nowrap;
+}
+#reports-table td {
+    vertical-align: middle;
+}
+
+/* 状态标签 */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.status-badge.completed {
+    background: #dcfce7;
+    color: #166534;
+}
+.status-badge.pending {
+    background: #dbeafe;
+    color: #1e40af;
+}
+.status-badge.failed {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* 决策标签 */
+.decision-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.decision-badge.buy {
+    background: #dcfce7;
+    color: #166534;
+}
+.decision-badge.sell {
+    background: #fee2e2;
+    color: #991b1b;
+}
+.decision-badge.hold {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+/* 风险标签 */
+.risk-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.risk-badge.green {
+    background: #dcfce7;
+    color: #166534;
+}
+.risk-badge.yellow {
+    background: #fef3c7;
+    color: #92400e;
+}
+.risk-badge.red {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* 操作按钮 */
+.action-btn {
+    padding: 4px 8px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+    color: var(--gray-500);
+}
+.action-btn:hover {
+    background: var(--gray-100);
+    color: var(--primary);
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    let currentPage = 1;
+    let pageSize = 10;
+    let totalReports = 0;
+    let reports = [];
+    let currentReportId = null;
+
+    // 加载报告
+    async function loadReports() {
+        // 模拟数据
+        reports = generateMockReports();
+        totalReports = reports.length;
+        renderReports();
+        updatePagination();
+        updateStats();
+    }
+
+    // 生成模拟报告
+    function generateMockReports() {
+        const mockData = [];
+        const decisions = ['buy', 'sell', 'hold'];
+        const risks = ['green', 'yellow', 'red'];
+        const markets = ['stock', 'etf', 'futures'];
+        
+        for (let i = 0; i < 35; i++) {
+            const decision = decisions[Math.floor(Math.random() * decisions.length)];
+            const risk = risks[Math.floor(Math.random() * risks.length)];
+            const status = Math.random() > 0.3 ? 'completed' : 'pending';
+            
+            mockData.push({
+                id: `RPT${String(i + 1).padStart(4, '0')}`,
+                code: `00000${i + 1}`.slice(-6),
+                name: `股票${i + 1}`,
+                market: markets[Math.floor(Math.random() * markets.length)],
+                status: status,
+                decision: decision,
+                confidence: Math.floor(Math.random() * 100),
+                risk: risk,
+                created: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+            });
+        }
+        return mockData;
+    }
+
+    // 渲染报告
+    function renderReports() {
+        const start = (currentPage - 1) * pageSize;
+        const end = Math.min(start + pageSize, totalReports);
+        const items = reports.slice(start, end);
+        
+        const tbody = document.getElementById('reports-table-body');
+        
+        if (items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">暂无报告</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = items.map(item => {
+            const decisionClass = item.decision;
+            const decisionText = item.decision === 'buy' ? '做多' : item.decision === 'sell' ? '做空' : '观望';
+            const riskClass = item.risk;
+            const riskText = item.risk === 'green' ? '低' : item.risk === 'yellow' ? '中' : '高';
+            const statusClass = item.status;
+            const statusText = item.status === 'completed' ? '已完成' : item.status === 'pending' ? '进行中' : '失败';
+            
+            return `<tr>
+                <td><span class="text-muted">${esc(item.id)}</span></td>
+                <td><span class="stock-code-link" onclick="analyzeStock('${item.code}')">${esc(item.code)}</span></td>
+                <td>${esc(item.name)}</td>
+                <td><span class="market-tag ${esc(item.market)}">${esc(item.market)}</span></td>
+                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                <td><span class="decision-badge ${decisionClass}">${decisionText}</span></td>
+                <td>${item.confidence}%</td>
+                <td><span class="risk-badge ${riskClass}">${riskText}</span></td>
+                <td><small class="text-muted">${formatTime(item.created)}</small></td>
+                <td>
+                    <div class="d-flex gap-1">
+                        <button class="action-btn" onclick="viewReport('${item.id}')" title="查看">
+                            <i class="bi bi-eye text-primary"></i>
+                        </button>
+                        <button class="action-btn" onclick="downloadReport('${item.id}')" title="下载">
+                            <i class="bi bi-download text-success"></i>
+                        </button>
+                        <button class="action-btn" onclick="deleteReport('${item.id}')" title="删除">
+                            <i class="bi bi-trash text-danger"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+        
+        // 更新分页信息
+        document.getElementById('report-page-start').textContent = start + 1;
+        document.getElementById('report-page-end').textContent = end;
+        document.getElementById('report-page-total').textContent = totalReports;
+    }
+
+    // 更新统计
+    function updateStats() {
+        const completed = reports.filter(r => r.status === 'completed').length;
+        const pending = reports.filter(r => r.status === 'pending').length;
+        
+        document.getElementById('stat-total-reports').textContent = totalReports;
+        document.getElementById('stat-completed-reports').textContent = completed;
+        document.getElementById('stat-pending-reports').textContent = pending;
+        document.getElementById('stat-downloads').textContent = Math.floor(totalReports * 0.8); // 模拟下载次数
+    }
+
+    // 更新分页
+    function updatePagination() {
+        const totalPages = Math.ceil(totalReports / pageSize);
+        const pagination = document.getElementById('report-pagination');
+        
+        if (totalPages <= 1) {
+            pagination.innerHTML = '';
+            return;
+        }
+        
+        let html = '';
+        
+        // 上一页
+        html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">上一页</a>
+        </li>`;
+        
+        // 页码
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+                html += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+                    <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+                </li>`;
+            } else if (i === currentPage - 3 || i === currentPage + 3) {
+                html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+        }
+        
+        // 下一页
+        html += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">下一页</a>
+        </li>`;
+        
+        pagination.innerHTML = html;
+    }
+
+    // 切换页面
+    window.changePage = function(page) {
+        if (page < 1 || page > Math.ceil(totalReports / pageSize)) return;
+        currentPage = page;
+        renderReports();
+        updatePagination();
+    };
+
+    // 查看报告
+    window.viewReport = function(reportId) {
+        currentReportId = reportId;
+        const report = reports.find(r => r.id === reportId);
+        if (!report) return;
+        
+        const modal = new bootstrap.Modal(document.getElementById('reportDetailModal'));
+        document.getElementById('report-detail-content').innerHTML = renderReportDetail(report);
+        modal.show();
+    };
+
+    // 渲染报告详情
+    function renderReportDetail(report) {
+        const decisionText = report.decision === 'buy' ? '做多' : report.decision === 'sell' ? '做空' : '观望';
+        const riskText = report.risk === 'green' ? '低风险' : report.risk === 'yellow' ? '中风险' : '高风险';
+        
+        return `<div class="mb-4">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">基本信息</div>
+                        <div class="card-body">
+                            <p><strong>报告ID:</strong> ${esc(report.id)}</p>
+                            <p><strong>股票代码:</strong> ${esc(report.code)}</p>
+                            <p><strong>股票名称:</strong> ${esc(report.name)}</p>
+                            <p><strong>市场:</strong> ${esc(report.market)}</p>
+                            <p><strong>创建时间:</strong> ${formatTime(report.created)}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">分析结果</div>
+                        <div class="card-body">
+                            <p><strong>决策:</strong> <span class="decision-badge ${report.decision}">${decisionText}</span></p>
+                            <p><strong>置信度:</strong> ${report.confidence}%</p>
+                            <p><strong>风险等级:</strong> <span class="risk-badge ${report.risk}">${riskText}</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-3">
+                <div class="card">
+                    <div class="card-header">详细分析</div>
+                    <div class="card-body">
+                        <p class="text-muted">报告详细内容...</p>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    // 下载报告
+    window.downloadReport = function(reportId) {
+        const report = reports.find(r => r.id === reportId);
+        if (!report) return;
+        
+        // 生成报告内容
+        const content = generateReportContent(report);
+        const blob = new Blob([content], { type: 'text/markdown' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${report.code}_分析报告_${formatDate(report.created)}.md`;
+        link.click();
+    };
+
+    // 下载当前报告
+    window.downloadCurrentReport = function() {
+        if (currentReportId) {
+            downloadReport(currentReportId);
+        }
+    };
+
+    // 生成报告内容
+    function generateReportContent(report) {
+        const decisionText = report.decision === 'buy' ? '做多' : report.decision === 'sell' ? '做空' : '观望';
+        const riskText = report.risk === 'green' ? '低风险' : report.risk === 'yellow' ? '中风险' : '高风险';
+        
+        return `# ${report.code} 分析报告
+
+## 基本信息
+
+- **报告ID**: ${report.id}
+- **股票代码**: ${report.code}
+- **股票名称**: ${report.name}
+- **市场**: ${report.market}
+- **创建时间**: ${formatTime(report.created)}
+
+## 分析结果
+
+- **决策**: ${decisionText}
+- **置信度**: ${report.confidence}%
+- **风险等级**: ${riskText}
+
+## 详细分析
+
+报告详细内容...
+
+---
+*本报告由 AGI实验室 自动生成*`;
+    }
+
+    // 删除报告
+    window.deleteReport = function(reportId) {
+        if (!confirm('确定要删除该报告吗？')) return;
+        reports = reports.filter(r => r.id !== reportId);
+        totalReports = reports.length;
+        renderReports();
+        updatePagination();
+        updateStats();
+    };
+
+    // 分析股票
+    window.analyzeStock = function(code) {
+        window.location.href = `/single-analysis?code=${code}`;
+    };
+
+    // 工具函数
+    function formatTime(timestamp) {
+        if (!timestamp) return '-';
+        const date = new Date(timestamp);
+        return date.toLocaleString('zh-CN');
+    }
+
+    function formatDate(timestamp) {
+        if (!timestamp) return '-';
+        const date = new Date(timestamp);
+        return date.toISOString().split('T')[0];
+    }
+
+    function esc(s) {
+        if (!s) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // 页面加载时加载报告
+    loadReports();
+})();
+</script>
+{% endblock %}

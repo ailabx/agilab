@@ -9,3 +9,6 @@
 目录在backend/下
 1、前后端不分离，使用fastapi驱动。
 2、前端使用bootstrap5/tailwind，必要时，可以引入cdn版本的Vue3,或轻量级的js框架。
+
+数据存储，使用Sqlite, 用sqlite-utils这个包，存储在data/data.db，尽量避免自己写schema。
+

@@ -3,3 +3,6 @@ openai
 toml
 tushare
 sqlite-utils
+akshare
+sqlalchemy
+greenlet

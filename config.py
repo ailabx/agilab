@@ -13,8 +13,8 @@ DATA_DIR.mkdir(exist_ok=True)
 _CONFIG_KEYS = ["MODEL", "BASE_URL", "KEY", "TS_TOKEN"]
 
 _DEFAULTS = {
-    "MODEL": "glm-5.2",
-    "BASE_URL": "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+    "MODEL": "gpt6",
+    "BASE_URL": "",
     "KEY": "",
     "TS_TOKEN": "",
 }

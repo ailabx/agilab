@@ -1,0 +1,568 @@
+{% extends "base.html" %}
+{% block title %}任务中心 - AGI实验室{% endblock %}
+{% block content %}
+<!-- 页面头部 -->
+<div class="page-header mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <div class="page-icon">
+            <i class="bi bi-list-task"></i>
+        </div>
+        <div>
+            <h2 class="mb-1">任务中心</h2>
+            <p class="text-muted mb-0">实时监控和管理分析任务状态</p>
+        </div>
+    </div>
+</div>
+
+<!-- 统计卡片 -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="icon bg-primary bg-opacity-10 text-primary">
+                <i class="bi bi-list-ul"></i>
+            </div>
+            <div class="num" id="stat-total">0</div>
+            <div class="label">总任务数</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="icon bg-warning bg-opacity-10 text-warning">
+                <i class="bi bi-hourglass-split"></i>
+            </div>
+            <div class="num" id="stat-running">0</div>
+            <div class="label">运行中</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="icon bg-success bg-opacity-10 text-success">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div class="num" id="stat-completed">0</div>
+            <div class="label">已完成</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="icon bg-danger bg-opacity-10 text-danger">
+                <i class="bi bi-x-circle"></i>
+            </div>
+            <div class="num" id="stat-failed">0</div>
+            <div class="label">失败/取消</div>
+        </div>
+    </div>
+</div>
+
+<!-- 任务列表 -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-table"></i> 任务列表</span>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary" onclick="loadTasks()">
+                <i class="bi bi-arrow-clockwise"></i> 刷新
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="clearCompleted()">
+                <i class="bi bi-trash"></i> 清理已完成
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <!-- 任务表格 -->
+        <div class="table-responsive">
+            <table class="table table-hover" id="task-table">
+                <thead>
+                    <tr>
+                        <th>任务ID</th>
+                        <th>股票代码</th>
+                        <th>市场</th>
+                        <th>状态</th>
+                        <th>进度</th>
+                        <th>优先级</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="task-table-body">
+                    <tr><td colspan="8" class="text-center text-muted py-4">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- 分页 -->
+        <nav aria-label="Page navigation" class="d-flex justify-content-between align-items-center">
+            <div class="text-muted">
+                显示 <span id="page-start">1</span> - <span id="page-end">10</span> 条，共 <span id="page-total">0</span> 条
+            </div>
+            <ul class="pagination mb-0" id="pagination">
+                <!-- 动态生成 -->
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<!-- 任务详情弹窗 -->
+<div class="modal fade" id="taskDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-info-circle"></i> 任务详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="task-detail-content">
+                <!-- 动态生成 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 结果弹窗 -->
+<div class="modal fade" id="resultModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-clipboard-check"></i> 分析结果</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="result-content">
+                <!-- 动态生成 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" onclick="downloadReport()">
+                    <i class="bi bi-download"></i> 下载报告
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* 任务表格样式 */
+#task-table th {
+    font-weight: 600;
+    color: var(--gray-600);
+    border-bottom: 2px solid var(--gray-200);
+    white-space: nowrap;
+}
+#task-table td {
+    vertical-align: middle;
+}
+.task-id {
+    font-family: 'Fira Code', monospace;
+    font-size: 12px;
+    color: var(--primary);
+    cursor: pointer;
+}
+.task-id:hover {
+    text-decoration: underline;
+}
+
+/* 状态标签 */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.status-badge.running {
+    background: #dbeafe;
+    color: #1e40af;
+}
+.status-badge.completed {
+    background: #dcfce7;
+    color: #166534;
+}
+.status-badge.failed {
+    background: #fee2e2;
+    color: #991b1b;
+}
+.status-badge.cancelled {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* 进度条 */
+.progress {
+    height: 8px;
+    border-radius: 4px;
+    background: var(--gray-200);
+}
+.progress-bar {
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+/* 优先级标签 */
+.priority-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.priority-badge.high {
+    background: #fef3c7;
+    color: #92400e;
+}
+.priority-badge.normal {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* 操作按钮 */
+.action-btn {
+    padding: 4px 8px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+    color: var(--gray-500);
+}
+.action-btn:hover {
+    background: var(--gray-100);
+    color: var(--primary);
+}
+
+/* 分页 */
+.pagination .page-link {
+    border: 1px solid var(--gray-200);
+    color: var(--gray-600);
+    padding: 8px 16px;
+}
+.pagination .page-item.active .page-link {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+.pagination .page-item.disabled .page-link {
+    color: var(--gray-400);
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    let currentPage = 1;
+    let pageSize = 10;
+    let totalTasks = 0;
+    let allTasks = [];
+    let currentTaskId = null;
+
+    // 加载任务列表
+    async function loadTasks() {
+        try {
+            const r = await fetch('/api/tasks');
+            const tasks = await r.json();
+            allTasks = tasks;
+            totalTasks = tasks.length;
+            
+            // 更新统计
+            updateStats(tasks);
+            
+            // 渲染表格
+            renderTable();
+            
+            // 更新分页
+            updatePagination();
+        } catch(e) {
+            console.error('加载任务失败:', e);
+            document.getElementById('task-table-body').innerHTML = 
+                '<tr><td colspan="8" class="text-center text-danger py-4">加载失败</td></tr>';
+        }
+    }
+
+    // 更新统计
+    function updateStats(tasks) {
+        const total = tasks.length;
+        const running = tasks.filter(t => t.status === 'running').length;
+        const completed = tasks.filter(t => t.status === 'done').length;
+        const failed = tasks.filter(t => t.status === 'cancelled' || t.status === 'error').length;
+        
+        document.getElementById('stat-total').textContent = total;
+        document.getElementById('stat-running').textContent = running;
+        document.getElementById('stat-completed').textContent = completed;
+        document.getElementById('stat-failed').textContent = failed;
+    }
+
+    // 渲染表格
+    function renderTable() {
+        const start = (currentPage - 1) * pageSize;
+        const end = Math.min(start + pageSize, totalTasks);
+        const tasks = allTasks.slice(start, end);
+        
+        const tbody = document.getElementById('task-table-body');
+        
+        if (tasks.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">暂无任务</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = tasks.map(t => {
+            const progress = calculateProgress(t);
+            const priority = t.priority || 'normal';
+            const priorityClass = priority === 'high' ? 'high' : 'normal';
+            const priorityText = priority === 'high' ? '高' : '普通';
+            
+            return `<tr>
+                <td><span class="task-id" onclick="viewTaskDetail('${t.task_id}')">${esc(t.task_id)}</span></td>
+                <td>${esc(t.symbol)}</td>
+                <td><span class="market-tag ${esc(t.market)}">${esc(t.market)}</span></td>
+                <td><span class="status-badge ${esc(t.status)}">${getStatusText(t.status)}</span></td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar ${t.status === 'running' ? 'progress-bar-striped progress-bar-animated' : ''}" 
+                             style="width: ${progress}%"></div>
+                    </div>
+                    <small class="text-muted">${progress}%</small>
+                </td>
+                <td><span class="priority-badge ${priorityClass}">${priorityText}</span></td>
+                <td><small class="text-muted">${formatTime(t.created)}</small></td>
+                <td>
+                    <div class="d-flex gap-1">
+                        ${t.status === 'running' ? 
+                            `<button class="action-btn" onclick="cancelTask('${t.task_id}')" title="取消">
+                                <i class="bi bi-stop-circle text-warning"></i>
+                            </button>` : ''}
+                        ${t.status === 'done' ? 
+                            `<button class="action-btn" onclick="viewResult('${t.task_id}')" title="查看结果">
+                                <i class="bi bi-eye text-primary"></i>
+                            </button>` : ''}
+                        <button class="action-btn" onclick="deleteTask('${t.task_id}')" title="删除">
+                            <i class="bi bi-trash text-danger"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+        
+        // 更新分页信息
+        document.getElementById('page-start').textContent = start + 1;
+        document.getElementById('page-end').textContent = end;
+        document.getElementById('page-total').textContent = totalTasks;
+    }
+
+    // 计算进度
+    function calculateProgress(task) {
+        if (task.status === 'done') return 100;
+        if (task.status === 'cancelled') return 0;
+        if (task.status === 'running') {
+            // 根据phase数量估算进度
+            const phases = task.phases || [];
+            const completed = phases.filter(p => p.status === '✓ 通过').length;
+            return Math.min(Math.round((completed / 6) * 100), 95); // 最多95%，完成时100%
+        }
+        return 0;
+    }
+
+    // 更新分页
+    function updatePagination() {
+        const totalPages = Math.ceil(totalTasks / pageSize);
+        const pagination = document.getElementById('pagination');
+        
+        if (totalPages <= 1) {
+            pagination.innerHTML = '';
+            return;
+        }
+        
+        let html = '';
+        
+        // 上一页
+        html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">上一页</a>
+        </li>`;
+        
+        // 页码
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+                html += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+                    <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+                </li>`;
+            } else if (i === currentPage - 3 || i === currentPage + 3) {
+                html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+        }
+        
+        // 下一页
+        html += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">下一页</a>
+        </li>`;
+        
+        pagination.innerHTML = html;
+    }
+
+    // 切换页面
+    window.changePage = function(page) {
+        if (page < 1 || page > Math.ceil(totalTasks / pageSize)) return;
+        currentPage = page;
+        renderTable();
+        updatePagination();
+    };
+
+    // 查看任务详情
+    window.viewTaskDetail = async function(taskId) {
+        currentTaskId = taskId;
+        try {
+            const r = await fetch('/api/analyze/' + taskId);
+            const data = await r.json();
+            
+            const modal = new bootstrap.Modal(document.getElementById('taskDetailModal'));
+            document.getElementById('task-detail-content').innerHTML = renderTaskDetail(data);
+            modal.show();
+        } catch(e) {
+            console.error('加载任务详情失败:', e);
+        }
+    };
+
+    // 渲染任务详情
+    function renderTaskDetail(data) {
+        const phases = data.phases || [];
+        let html = `<div class="mb-3">
+            <strong>任务ID:</strong> ${esc(data.task_id || currentTaskId)}<br>
+            <strong>状态:</strong> <span class="status-badge ${esc(data.status)}">${getStatusText(data.status)}</span><br>
+            <strong>耗时:</strong> ${data.duration || 0}s
+        </div>`;
+        
+        html += '<h6>执行阶段:</h6><div class="list-group">';
+        phases.forEach(p => {
+            html += `<div class="list-group-item">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-${p.icon}"></i> ${esc(p.name)}</span>
+                    <span class="badge bg-${p.status_color}">${esc(p.status)}</span>
+                </div>
+            </div>`;
+        });
+        html += '</div>';
+        
+        return html;
+    }
+
+    // 查看结果
+    window.viewResult = async function(taskId) {
+        currentTaskId = taskId;
+        try {
+            const r = await fetch('/api/analyze/' + taskId);
+            const data = await r.json();
+            
+            const modal = new bootstrap.Modal(document.getElementById('resultModal'));
+            document.getElementById('result-content').innerHTML = renderResult(data);
+            modal.show();
+        } catch(e) {
+            console.error('加载结果失败:', e);
+        }
+    };
+
+    // 渲染结果
+    function renderResult(data) {
+        const signal = data.signal || {};
+        const phases = data.phases || [];
+        
+        let html = '<div class="final-decision mb-4">';
+        html += '<div class="decision-header"><h4>最终决策</h4>';
+        html += `<span class="decision-badge ${signal.direction === '做多' ? 'buy' : signal.direction === '做空' ? 'sell' : 'hold'}">${esc(signal.direction || '观望')}</span></div>`;
+        html += '<div class="row g-3 mt-2">';
+        html += `<div class="col-md-3"><div class="metric-card"><div class="metric-label">置信度</div><div class="metric-value">${signal.confidence || 0}%</div></div></div>`;
+        html += `<div class="col-md-3"><div class="metric-card"><div class="metric-label">风险评分</div><div class="metric-value">${esc(signal.risk || '--')}</div></div></div>`;
+        html += `<div class="col-md-3"><div class="metric-card"><div class="metric-label">建议仓位</div><div class="metric-value">${signal.position_pct || 0}%</div></div></div>`;
+        html += `<div class="col-md-3"><div class="metric-card"><div class="metric-label">目标价</div><div class="metric-value">${signal.target || '--'}</div></div></div>`;
+        html += '</div></div>';
+        
+        // 各阶段输出
+        html += '<h6>分析详情:</h6>';
+        phases.forEach(p => {
+            if (p.output) {
+                html += `<div class="card mb-2">
+                    <div class="card-header"><i class="bi bi-${p.icon}"></i> ${esc(p.name)}</div>
+                    <div class="card-body"><pre class="mb-0">${esc(p.output.substring(0, 500))}</pre></div>
+                </div>`;
+            }
+        });
+        
+        return html;
+    }
+
+    // 取消任务
+    window.cancelTask = async function(taskId) {
+        if (!confirm('确定要取消该任务吗？')) return;
+        try {
+            await fetch('/api/tasks/' + taskId + '/cancel', { method: 'POST' });
+            await loadTasks();
+        } catch(e) {
+            console.error('取消任务失败:', e);
+        }
+    };
+
+    // 删除任务
+    window.deleteTask = async function(taskId) {
+        if (!confirm('确定要删除该任务吗？')) return;
+        try {
+            await fetch('/api/tasks/' + taskId, { method: 'DELETE' });
+            await loadTasks();
+        } catch(e) {
+            console.error('删除任务失败:', e);
+        }
+    };
+
+    // 清理已完成任务
+    window.clearCompleted = async function() {
+        if (!confirm('确定要清理所有已完成的任务吗？')) return;
+        try {
+            const completedTasks = allTasks.filter(t => t.status === 'done');
+            for (const task of completedTasks) {
+                await fetch('/api/tasks/' + task.task_id, { method: 'DELETE' });
+            }
+            await loadTasks();
+        } catch(e) {
+            console.error('清理任务失败:', e);
+        }
+    };
+
+    // 下载报告
+    window.downloadReport = function() {
+        alert('报告下载功能开发中...');
+    };
+
+    // 工具函数
+    function getStatusText(status) {
+        const map = {
+            'running': '运行中',
+            'done': '已完成',
+            'cancelled': '已取消',
+            'error': '失败'
+        };
+        return map[status] || status;
+    }
+
+    function formatTime(timestamp) {
+        if (!timestamp) return '-';
+        const str = String(timestamp);
+        if (str.length >= 14) {
+            return `${str.slice(0,4)}-${str.slice(4,6)}-${str.slice(6,8)} ${str.slice(8,10)}:${str.slice(10,12)}`;
+        }
+        return str;
+    }
+
+    function esc(s) {
+        if (!s) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // 页面加载时加载任务
+    loadTasks();
+    
+    // 定时刷新
+    setInterval(loadTasks, 30000);
+})();
+</script>
+{% endblock %}

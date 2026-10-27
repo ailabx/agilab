@@ -1,31 +1,35 @@
 {% extends "base.html" %}
 {% block title %}设置 - AGI实验室{% endblock %}
 {% block content %}
-<h2>系统设置</h2>
+<h2><i class="bi bi-gear text-primary"></i> 系统设置</h2>
+<p class="text-muted mb-4">管理 LLM 模型和数据源配置</p>
+
 <div class="card">
-    <div class="card-header"><i class="bi bi-gear"></i> 配置管理</div>
+    <div class="card-header"><i class="bi bi-gear text-primary"></i> 配置管理</div>
     <div class="card-body">
         {% if saved %}
-        <div class="alert alert-success">已更新 {{ saved }} 项配置: {{ saved_fields|join(', ') }}，重启服务后生效。</div>
+        <div class="alert alert-success"><i class="bi bi-check-circle-fill"></i> 已更新 {{ saved }} 项配置: {{ saved_fields|join(', ') }}，重启服务后生效。</div>
         {% endif %}
         <form method="post" action="/settings">
-            <div class="mb-3">
-                <label class="form-label">配置文件路径</label>
+            <div class="mb-4">
+                <label class="form-label fw-semibold">配置文件路径</label>
                 <input type="text" class="form-control config-path" value="{{ config_path }}" readonly>
             </div>
-            <hr>
-            <h6 class="mb-3"><i class="bi bi-chat-dots"></i> LLM 大模型配置</h6>
-            <div class="row g-3 mb-3">
+            <hr class="my-4">
+            <h6 class="mb-3"><i class="bi bi-chat-dots text-primary"></i> LLM 大模型配置</h6>
+            <div class="row g-3 mb-4">
                 <div class="col-md-6">
-                    <label class="form-label">模型名称 (MODEL)</label>
+                    <label class="form-label fw-semibold">模型名称 (MODEL)</label>
                     <input type="text" class="form-control" name="MODEL" value="{{ cfg.MODEL }}">
+                    <div class="form-text">当前使用的 LLM 模型名称</div>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">API 地址 (BASE_URL)</label>
+                    <label class="form-label fw-semibold">API 地址 (BASE_URL)</label>
                     <input type="text" class="form-control" name="BASE_URL" value="{{ cfg.BASE_URL }}">
+                    <div class="form-text">OpenAI 兼容 API 地址</div>
                 </div>
                 <div class="col-md-12">
-                    <label class="form-label">API 密钥 (KEY)</label>
+                    <label class="form-label fw-semibold">API 密钥 (KEY)</label>
                     <div class="input-group">
                         <input type="password" class="form-control" name="KEY" placeholder="{{ cfg.KEY or 'sk-...' }}">
                         <button class="btn btn-outline-secondary" type="button" onclick="toggleInput(this)">
@@ -35,11 +39,11 @@
                     <div class="form-text">{{ '已设置 (' + cfg.KEY + ')，留空不修改' if cfg.KEY else '未设置' }}</div>
                 </div>
             </div>
-            <hr>
-            <h6 class="mb-3"><i class="bi bi-database"></i> 数据源配置</h6>
+            <hr class="my-4">
+            <h6 class="mb-3"><i class="bi bi-database text-primary"></i> 数据源配置</h6>
             <div class="row g-3">
                 <div class="col-md-12">
-                    <label class="form-label">Tushare Token (TS_TOKEN)</label>
+                    <label class="form-label fw-semibold">Tushare Token (TS_TOKEN)</label>
                     <div class="input-group">
                         <input type="password" class="form-control" name="TS_TOKEN" placeholder="{{ cfg.TS_TOKEN or 'tushare token' }}">
                         <button class="btn btn-outline-secondary" type="button" onclick="toggleInput(this)">
@@ -49,9 +53,9 @@
                     <div class="form-text">{{ '已设置 (' + cfg.TS_TOKEN + ')，留空不修改' if cfg.TS_TOKEN else '未设置' }}</div>
                 </div>
             </div>
-            <div class="mt-4">
-                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> 保存</button>
-                <a href="/" class="btn btn-secondary">返回</a>
+            <div class="mt-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> 保存配置</button>
+                <a href="/dashboard" class="btn btn-outline-secondary">返回仪表板</a>
             </div>
         </form>
     </div>

@@ -1,7 +1,16 @@
-"""Tushare 数据源——极简版，只保留核心数据拉取能力。
+"""Tushare 数据源 —— 按需加载，增量更新。
 
-去掉 TA-CN 的 MongoDB/异步/事件循环/日志装饰器等重设施。
-纯同步调用，直接返回 pandas DataFrame 或 dict。
+用法：
+    source = TushareSource()
+    
+    # 获取A股日K线（自动判断全量/增量）
+    df = source.get_stock_daily("600519", days=120)
+    
+    # 获取ETF日K线
+    df = source.get_etf_daily("510300", days=60)
+    
+    # 获取期货日K线
+    df = source.get_futures_daily("RB2501", days=60)
 """
 
 import os
@@ -10,217 +19,238 @@ from typing import Optional
 
 import pandas as pd
 
+from config import config
+
+from . import db_manager as db
+
 try:
     import tushare as ts
     _TS_AVAILABLE = True
 except ImportError:
     _TS_AVAILABLE = False
 
-from config import config
-
 
 class TushareSource:
-    """Tushare 数据源，从 config.TS_TOKEN 读取 token。"""
+    """Tushare 数据源，支持按需加载和增量更新。"""
 
     def __init__(self):
         self._api = None
 
     def _get_api(self):
-        """初始化或复用 Tushare API Client。"""
+        """初始化或复用 Tushare API。"""
         if not _TS_AVAILABLE:
-            raise RuntimeError("tushare 未安装，请 pip install tushare")
-
-        token = config.TS_TOKEN
-        if not token:
-            raise RuntimeError("TS_TOKEN 未配置，请在 ~/.agilab/config.toml 中设置")
-
+            raise RuntimeError("tushare 未安装")
         if self._api is None:
+            token = config.TS_TOKEN
+            if not token:
+                raise RuntimeError("TS_TOKEN 未配置")
             self._api = ts.pro_api(token)
         return self._api
 
-    def _normalize_ts_code(self, symbol: str) -> str:
-        """将股票代码转为 tushare 格式: 600519 → 600519.SH, 000001 → 000001.SZ。"""
-        symbol = symbol.strip()
+    def _normalize_ts_code(self, symbol: str, market: str = "stock") -> str:
+        """标准化代码格式。"""
+        symbol = symbol.strip().upper()
         if "." in symbol:
-            return symbol.upper()
-
-        code = symbol.replace("sh", "").replace("sz", "").replace("SH", "").replace("SZ", "")
-
-        if code.startswith(("60", "68", "90", "11", "13", "50", "51", "52", "56", "58")):
-            return f"{code}.SH"
-        elif code.startswith(("00", "30", "12", "15", "16", "18")):
-            return f"{code}.SZ"
-        elif code.startswith(("43", "83", "87", "88")):
-            return f"{code}.BJ"
-        return f"{code}.SH"
+            return symbol
+        
+        if market == "futures":
+            # 期货代码直接返回，如 "RB2501"
+            return symbol
+        
+        # 股票/ETF
+        if symbol.startswith(("60", "68", "90")):
+            return f"{symbol}.SH"
+        elif symbol.startswith(("00", "30", "12")):
+            return f"{symbol}.SZ"
+        elif symbol.startswith(("43", "83", "87", "88")):
+            return f"{symbol}.BJ"
+        return f"{symbol}.SH"
 
     def _is_etf(self, ts_code: str) -> bool:
+        """判断是否为ETF。"""
         code = ts_code.split(".")[0]
         return code.startswith(("51", "15", "52", "56", "58", "50"))
 
-    def _is_convertible(self, ts_code: str) -> bool:
-        code = ts_code.split(".")[0]
-        return code.startswith(("11", "12", "13"))
+    # ==================== 日K线：按需加载 + 增量更新 ====================
 
-    # ==================== 行情数据 ====================
-
-    def get_daily(self, symbol: str, days: int = 120) -> pd.DataFrame:
-        """获取日K线数据（前复权）。
-
-        参数:
-            symbol: 股票代码，如 "600519" 或 "600519.SH"
-            days: 获取最近多少天的数据
-
-        返回:
-            DataFrame: 列含 trade_date, open, high, low, close, vol, amount
+    def get_stock_daily(self, symbol: str, days: int = 120) -> pd.DataFrame:
+        """获取A股日K线（按需加载，增量更新）。
+        
+        首次：从 Tushare 全量拉取
+        后续：只拉取新增数据，合并到本地 SQLite
         """
-        api = self._get_api()
-        ts_code = self._normalize_ts_code(symbol)
-
-        end_date = datetime.now().strftime("%Y%m%d")
-        start_date = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
-
-        if self._is_etf(ts_code):
-            df = api.fund_daily(ts_code=ts_code, start_date=start_date, end_date=end_date)
+        ts_code = self._normalize_ts_code(symbol, "stock")
+        
+        # 1. 检查本地是否有数据
+        local_df = db.get_stock_daily(ts_code, limit=1)
+        
+        if local_df.empty:
+            # 首次加载：从 Tushare 全量拉取
+            print(f"[Tushare] {ts_code} 首次加载，全量拉取...")
+            df = self._fetch_stock_daily(ts_code, days)
+            if not df.empty:
+                db.save_stock_daily(df)
+            return df
         else:
+            # 已有数据：检查是否需要增量更新
+            needs_update, start_date, end_date = db.needs_update(ts_code, "stock_daily")
+            if needs_update:
+                print(f"[Tushare] {ts_code} 增量更新 {start_date} ~ {end_date}...")
+                new_df = self._fetch_stock_daily(ts_code, days=days, start_date=start_date, end_date=end_date)
+                if not new_df.empty:
+                    db.save_stock_daily(new_df)
+            
+            # 从本地读取（已包含最新数据）
+            return db.get_stock_daily(ts_code, limit=days)
+
+    def get_etf_daily(self, symbol: str, days: int = 120) -> pd.DataFrame:
+        """获取ETF日K线（按需加载，增量更新）。"""
+        ts_code = self._normalize_ts_code(symbol, "etf")
+        
+        local_df = db.get_etf_daily(ts_code, limit=1)
+        
+        if local_df.empty:
+            print(f"[Tushare] {ts_code} 首次加载，全量拉取...")
+            df = self._fetch_etf_daily(ts_code, days)
+            if not df.empty:
+                db.save_etf_daily(df)
+            return df
+        else:
+            needs_update, start_date, end_date = db.needs_update(ts_code, "etf_daily")
+            if needs_update:
+                print(f"[Tushare] {ts_code} 增量更新 {start_date} ~ {end_date}...")
+                new_df = self._fetch_etf_daily(ts_code, days=days, start_date=start_date, end_date=end_date)
+                if not new_df.empty:
+                    db.save_etf_daily(new_df)
+            
+            return db.get_etf_daily(ts_code, limit=days)
+
+    def get_futures_daily(self, symbol: str, days: int = 120) -> pd.DataFrame:
+        """获取期货日K线（按需加载，增量更新）。"""
+        ts_code = self._normalize_ts_code(symbol, "futures")
+        
+        local_df = db.get_futures_daily(ts_code, limit=1)
+        
+        if local_df.empty:
+            print(f"[Tushare] {ts_code} 首次加载，全量拉取...")
+            df = self._fetch_futures_daily(ts_code, days)
+            if not df.empty:
+                db.save_futures_daily(df)
+            return df
+        else:
+            needs_update, start_date, end_date = db.needs_update(ts_code, "futures_daily")
+            if needs_update:
+                print(f"[Tushare] {ts_code} 增量更新 {start_date} ~ {end_date}...")
+                new_df = self._fetch_futures_daily(ts_code, days=days, start_date=start_date, end_date=end_date)
+                if not new_df.empty:
+                    db.save_futures_daily(new_df)
+            
+            return db.get_futures_daily(ts_code, limit=days)
+
+    # ==================== 底层拉取方法 ====================
+
+    def _fetch_stock_daily(self, ts_code: str, days: int = 120,
+                           start_date: Optional[str] = None,
+                           end_date: Optional[str] = None) -> pd.DataFrame:
+        """从 Tushare 拉取A股日K线。"""
+        api = self._get_api()
+        
+        if end_date is None:
+            end_date = datetime.now().strftime("%Y%m%d")
+        if start_date is None:
+            start_date = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
+        
+        try:
             df = ts.pro_bar(ts_code=ts_code, api=api, start_date=start_date,
                             end_date=end_date, freq="D", adj="qfq")
-
-        if df is None or df.empty:
-            return pd.DataFrame()
-
-        df = df.sort_values("trade_date").reset_index(drop=True)
-        return df
-
-    def get_realtime(self, symbol: str) -> dict:
-        """获取最新一日行情快照。"""
-        df = self.get_daily(symbol, days=5)
-        if df.empty:
-            return {}
-        row = df.iloc[-1]
-        return {
-            "trade_date": row.get("trade_date", ""),
-            "open": float(row.get("open", 0)),
-            "high": float(row.get("high", 0)),
-            "low": float(row.get("low", 0)),
-            "close": float(row.get("close", 0)),
-            "vol": float(row.get("vol", 0)),
-            "amount": float(row.get("amount", 0)),
-            "pct_chg": float(row.get("pct_chg", 0)) if "pct_chg" in row else 0.0,
-        }
-
-    # ==================== 基本面数据 ====================
-
-    def get_stock_basic(self, symbol: str) -> dict:
-        """获取股票基础信息。"""
-        api = self._get_api()
-        ts_code = self._normalize_ts_code(symbol)
-
-        df = api.stock_basic(ts_code=ts_code,
-                             fields="ts_code,symbol,name,area,industry,market,list_date")
-        if df is None or df.empty:
-            return {}
-        return df.iloc[0].to_dict()
-
-    def get_daily_basic(self, symbol: str) -> dict:
-        """获取最新一日基本面指标: PE/PB/换手率等。"""
-        api = self._get_api()
-        ts_code = self._normalize_ts_code(symbol)
-
-        end_date = datetime.now().strftime("%Y%m%d")
-        start_date = (datetime.now() - timedelta(days=5)).strftime("%Y%m%d")
-
-        df = api.daily_basic(ts_code=ts_code, start_date=start_date, end_date=end_date)
-        if df is None or df.empty:
-            return {}
-        row = df.iloc[0]
-        return {
-            "trade_date": row.get("trade_date", ""),
-            "pe": float(row.get("pe", 0)) if pd.notna(row.get("pe")) else None,
-            "pe_ttm": float(row.get("pe_ttm", 0)) if pd.notna(row.get("pe_ttm")) else None,
-            "pb": float(row.get("pb", 0)) if pd.notna(row.get("pb")) else None,
-            "total_mv": float(row.get("total_mv", 0)) if pd.notna(row.get("total_mv")) else None,
-            "circ_mv": float(row.get("circ_mv", 0)) if pd.notna(row.get("circ_mv")) else None,
-            "turnover_rate": float(row.get("turnover_rate", 0)) if pd.notna(row.get("turnover_rate")) else None,
-        }
-
-    # ==================== ETF 专项 ====================
-
-    def get_fund_basic(self, symbol: str) -> dict:
-        """获取 ETF/基金基础信息。"""
-        api = self._get_api()
-        ts_code = self._normalize_ts_code(symbol)
-
-        df = api.fund_basic(ts_code=ts_code)
-        if df is None or df.empty:
-            return {}
-        return df.iloc[0].to_dict()
-
-    # ==================== 可转债专项 ====================
-
-    def get_cb_basic(self, symbol: str) -> dict:
-        """获取可转债基础信息（含转股价、溢价率等）。"""
-        api = self._get_api()
-        ts_code = self._normalize_ts_code(symbol)
-
-        df = api.cb_basic(ts_code=ts_code)
-        if df is None or df.empty:
-            return {}
-        return df.iloc[0].to_dict()
-
-    def get_cb_daily(self, symbol: str, days: int = 60) -> pd.DataFrame:
-        """获取可转债日K线。"""
-        api = self._get_api()
-        ts_code = self._normalize_ts_code(symbol)
-
-        end_date = datetime.now().strftime("%Y%m%d")
-        start_date = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
-
-        df = api.cb_daily(ts_code=ts_code, start_date=start_date, end_date=end_date)
-        if df is None or df.empty:
-            return pd.DataFrame()
-        return df.sort_values("trade_date").reset_index(drop=True)
-
-    # ==================== 新闻数据 ====================
-
-    def get_news(self, symbol: str, limit: int = 10) -> list:
-        """获取个股相关新闻。"""
-        api = self._get_api()
-
-        try:
-            df = api.news(src="sina", start_date=datetime.now().strftime("%Y%m%d"),
-                          end_date=datetime.now().strftime("%Y%m%d"))
             if df is None or df.empty:
-                return []
-            basic = self.get_stock_basic(symbol)
-            name = basic.get("name", "")
-            if name:
-                df = df[df["title"].str.contains(name, na=False)]
-            return df.head(limit).to_dict("records")
-        except Exception:
-            return []
-
-    # ==================== 综合接口 ====================
-
-    def get_all(self, symbol: str) -> dict:
-        """一次性获取行情+基本面+新闻，供 data_agent 使用。"""
-        result = {"symbol": symbol}
-
-        try:
-            result["kline"] = self.get_daily(symbol).to_dict("records")
-            result["realtime"] = self.get_realtime(symbol)
+                return pd.DataFrame()
+            df = df.sort_values("trade_date").reset_index(drop=True)
+            return df
         except Exception as e:
-            result["kline_error"] = str(e)
+            print(f"[Tushare] 拉取 {ts_code} 失败: {e}")
+            return pd.DataFrame()
 
+    def _fetch_etf_daily(self, ts_code: str, days: int = 120,
+                         start_date: Optional[str] = None,
+                         end_date: Optional[str] = None) -> pd.DataFrame:
+        """从 Tushare 拉取ETF日K线。"""
+        api = self._get_api()
+        
+        if end_date is None:
+            end_date = datetime.now().strftime("%Y%m%d")
+        if start_date is None:
+            start_date = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
+        
         try:
-            result["basic"] = self.get_stock_basic(symbol)
-            result["daily_basic"] = self.get_daily_basic(symbol)
+            df = api.fund_daily(ts_code=ts_code, start_date=start_date, end_date=end_date)
+            if df is None or df.empty:
+                return pd.DataFrame()
+            df = df.sort_values("trade_date").reset_index(drop=True)
+            return df
         except Exception as e:
-            result["basic_error"] = str(e)
+            print(f"[Tushare] 拉取 {ts_code} 失败: {e}")
+            return pd.DataFrame()
 
+    def _fetch_futures_daily(self, ts_code: str, days: int = 120,
+                             start_date: Optional[str] = None,
+                             end_date: Optional[str] = None) -> pd.DataFrame:
+        """从 Tushare 拉取期货日K线。"""
+        api = self._get_api()
+        
+        if end_date is None:
+            end_date = datetime.now().strftime("%Y%m%d")
+        if start_date is None:
+            start_date = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
+        
         try:
-            result["news"] = self.get_news(symbol)
+            df = api.fut_daily(ts_code=ts_code, start_date=start_date, end_date=end_date)
+            if df is None or df.empty:
+                return pd.DataFrame()
+            df = df.sort_values("trade_date").reset_index(drop=True)
+            return df
         except Exception as e:
-            result["news_error"] = str(e)
+            print(f"[Tushare] 拉取 {ts_code} 失败: {e}")
+            return pd.DataFrame()
 
-        return result
+    # ==================== 基础信息：全量更新 ====================
+
+    def refresh_stock_basic(self) -> pd.DataFrame:
+        """刷新A股基础信息（全量）。"""
+        api = self._get_api()
+        try:
+            df = api.stock_basic(fields="ts_code,symbol,name,area,industry,market,list_date")
+            if df is not None and not df.empty:
+                db.save_stock_basic(df)
+                print(f"[Tushare] A股基础信息已更新，共 {len(df)} 条")
+                return df
+        except Exception as e:
+            print(f"[Tushare] 刷新A股基础信息失败: {e}")
+        return pd.DataFrame()
+
+    def refresh_etf_basic(self) -> pd.DataFrame:
+        """刷新ETF基础信息（全量）。"""
+        api = self._get_api()
+        try:
+            df = api.fund_basic()
+            if df is not None and not df.empty:
+                db.save_etf_basic(df)
+                print(f"[Tushare] ETF基础信息已更新，共 {len(df)} 条")
+                return df
+        except Exception as e:
+            print(f"[Tushare] 刷新ETF基础信息失败: {e}")
+        return pd.DataFrame()
+
+    def refresh_futures_basic(self) -> pd.DataFrame:
+        """刷新期货基础信息（全量）。"""
+        api = self._get_api()
+        try:
+            # Tushare 期货基础信息接口
+            df = api.fut_basic()
+            if df is not None and not df.empty:
+                db.save_futures_basic(df)
+                print(f"[Tushare] 期货基础信息已更新，共 {len(df)} 条")
+                return df
+        except Exception as e:
+            print(f"[Tushare] 刷新期货基础信息失败: {e}")
+        return pd.DataFrame()

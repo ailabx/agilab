@@ -7,43 +7,276 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        :root { --sidebar-w: 220px; --brand: #0d6efd; }
+        :root {
+            --sidebar-w: 240px;
+            --primary: #6366f1;
+            --primary-light: #818cf8;
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --dark: #1e293b;
+            --dark-light: #334155;
+            --gray-50: #f8fafc;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1;
+            --gray-400: #94a3b8;
+            --gray-500: #64748b;
+            --gray-600: #475569;
+            --gray-700: #334155;
+            --gray-800: #1e293b;
+            --gray-900: #0f172a;
+            --text-primary: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --bg-secondary: #f1f5f9;
+        }
         * { font-size: 14px; }
-        body { margin: 0; background: #f8f9fa; }
+        body {
+            margin: 0;
+            background: var(--gray-50);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            color: var(--gray-800);
+        }
+
+        /* Sidebar */
         .sidebar {
             position: fixed; left: 0; top: 0; bottom: 0; width: var(--sidebar-w);
-            background: #1e293b; color: #cbd5e1; z-index: 100;
+            background: var(--gray-900); color: var(--gray-300); z-index: 100;
             display: flex; flex-direction: column;
+            border-right: 1px solid var(--gray-700);
         }
         .sidebar .brand {
-            padding: 16px 20px; font-size: 18px; font-weight: 600; color: #fff;
-            border-bottom: 1px solid #334155; display: flex; align-items: center; gap: 8px;
+            padding: 20px 24px; font-size: 20px; font-weight: 700; color: #fff;
+            border-bottom: 1px solid var(--gray-700); display: flex; align-items: center; gap: 12px;
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
         }
-        .sidebar .brand i { font-size: 20px; color: var(--brand); }
+        .sidebar .brand i { font-size: 24px; color: #fff; }
+        .nav-section { padding: 16px 12px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray-500); font-weight: 600; }
         .nav-btn {
-            color: #94a3b8; padding: 10px 20px; cursor: pointer; border: none;
-            background: none; text-align: left; width: 100%; transition: all .15s;
-            display: flex; align-items: center; text-decoration: none;
+            color: var(--gray-400); padding: 10px 20px; cursor: pointer; border: none;
+            background: none; text-align: left; width: 100%; transition: all .2s;
+            display: flex; align-items: center; text-decoration: none; margin: 2px 8px; width: calc(100% - 16px); border-radius: 8px;
         }
-        .nav-btn:hover { background: #334155; color: #fff; }
-        .nav-btn.active { background: var(--brand); color: #fff; }
-        .nav-btn i { margin-right: 8px; }
-        .nav-btn .ver { margin-left: auto; font-size: 11px; color: #475569; }
-        .sidebar-bottom { margin-top: auto; border-top: 1px solid #334155; }
-        .main { margin-left: var(--sidebar-w); padding: 24px; }
-        .main h2 { font-size: 20px; font-weight: 600; margin-bottom: 16px; }
-        .card { border: none; box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 16px; }
-        .card-header { background: #fff; border-bottom: 1px solid #e2e8f0; font-weight: 600; padding: 12px 16px; }
-        .stat { text-align: center; }
-        .stat .num { font-size: 28px; font-weight: 700; color: var(--brand); }
-        .stat .label { font-size: 12px; color: #64748b; }
-        .file-tree { font-family: monospace; font-size: 13px; }
-        .file-tree .dir { color: var(--brand); font-weight: 600; }
-        .file-tree .file { color: #475569; }
-        pre { background: #f1f5f9; padding: 12px; border-radius: 6px; font-size: 13px; }
-        .config-path { font-family: monospace; font-size: 12px; color: #64748b; }
-        .step-badge { padding: 6px 12px; margin: 4px; }
-        .agent-card .card-header { display: flex; align-items: center; gap: 8px; }
+        .nav-btn:hover { background: var(--gray-700); color: #fff; }
+        .nav-btn.active { background: var(--primary); color: #fff; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
+        .nav-btn i { margin-right: 10px; font-size: 16px; }
+        .nav-btn .ver { margin-left: auto; font-size: 11px; color: var(--gray-500); }
+        .sidebar-bottom { margin-top: auto; border-top: 1px solid var(--gray-700); padding: 12px; }
+
+        /* Main Content */
+        .main { margin-left: var(--sidebar-w); padding: 24px; min-height: 100vh; }
+        .main h2 { font-size: 24px; font-weight: 700; margin-bottom: 24px; color: var(--gray-800); }
+
+        /* Cards */
+        .card {
+            border: 1px solid var(--gray-200);
+            box-shadow: 0 1px 3px rgba(0,0,0,.04);
+            margin-bottom: 20px;
+            border-radius: 12px;
+            transition: all .2s;
+        }
+        .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+        .card-header {
+            background: #fff;
+            border-bottom: 1px solid var(--gray-100);
+            font-weight: 600;
+            padding: 16px 20px;
+            border-radius: 12px 12px 0 0 !important;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-body { padding: 20px; }
+
+        /* Stats */
+        .stat-card {
+            background: linear-gradient(135deg, #fff, var(--gray-50));
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            transition: all .2s;
+        }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+        .stat-card .icon {
+            width: 48px; height: 48px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 12px; font-size: 24px;
+        }
+        .stat-card .num { font-size: 32px; font-weight: 700; color: var(--gray-800); margin-bottom: 4px; }
+        .stat-card .label { font-size: 13px; color: var(--gray-500); font-weight: 500; }
+
+        /* Quick Actions */
+        .quick-action {
+            display: flex; align-items: center; gap: 16px;
+            padding: 20px;
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all .2s;
+            background: #fff;
+        }
+        .quick-action:hover {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, #fff, #eef2ff);
+            transform: translateX(4px);
+        }
+        .quick-action .icon {
+            width: 48px; height: 48px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px;
+        }
+        .quick-action .content h4 { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+        .quick-action .content p { margin: 0; font-size: 13px; color: var(--gray-500); }
+
+        /* Market Tags */
+        .market-tag {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 12px; border-radius: 20px;
+            font-size: 12px; font-weight: 600;
+        }
+        .market-tag.stock { background: #dbeafe; color: #1e40af; }
+        .market-tag.etf { background: #dcfce7; color: #166534; }
+        .market-tag.futures { background: #fef3c7; color: #92400e; }
+        .market-tag.convertible { background: #fce7f3; color: #9d174d; }
+
+        /* Tables */
+        .table th { font-weight: 600; color: var(--gray-600); border-bottom: 2px solid var(--gray-200); }
+        .table td { color: var(--gray-700); }
+
+        /* Status badges */
+        .badge-status { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .badge-status.running { background: #dbeafe; color: #1e40af; }
+        .badge-status.done { background: #dcfce7; color: #166534; }
+        .badge-status.cancelled { background: #f3f4f6; color: #6b7280; }
+
+        /* Welcome Section */
+        .welcome-section {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            border-radius: 16px;
+            padding: 40px;
+            color: white;
+            margin-bottom: 32px;
+        }
+        .welcome-section h1 { font-size: 32px; font-weight: 700; margin: 0 0 12px; }
+        .welcome-section p { font-size: 16px; opacity: 0.9; margin: 0; }
+
+        /* File Tree */
+        .file-tree { font-family: 'Fira Code', monospace; font-size: 13px; }
+        .file-tree .dir { color: var(--primary); font-weight: 600; }
+        .file-tree .file { color: var(--gray-600); }
+
+        /* Pre */
+        pre { background: var(--gray-800); color: var(--gray-200); padding: 16px; border-radius: 8px; font-size: 13px; }
+
+        /* Config */
+        .config-path { font-family: 'Fira Code', monospace; font-size: 12px; color: var(--gray-500); }
+
+        /* Step badges */
+        .step-badge { padding: 8px 16px; margin: 4px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+
+        /* Agent cards */
+        .agent-card { transition: all .2s; }
+        .agent-card:hover { transform: translateY(-4px); }
+        .agent-card .card-header { background: linear-gradient(135deg, #fff, #f8fafc); }
+
+        /* Market cards */
+        .market-card {
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all .2s;
+        }
+        .market-card:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1); }
+        .market-card .icon { font-size: 32px; margin-bottom: 12px; }
+        .market-card h4 { font-size: 18px; font-weight: 600; margin: 0 0 8px; }
+        .market-card p { font-size: 13px; color: var(--gray-500); margin: 0; }
+
+        /* Recent analyses */
+        .recent-item {
+            display: flex; align-items: center; gap: 16px;
+            padding: 16px;
+            border-bottom: 1px solid var(--gray-100);
+            transition: all .2s;
+        }
+        .recent-item:hover { background: var(--gray-50); }
+        .recent-item:last-child { border-bottom: none; }
+
+        /* Streaming Chat */
+        .stream-step {
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: var(--gray-100);
+            margin-bottom: 6px;
+            font-size: 12px;
+            color: var(--gray-700);
+            border-left: 3px solid var(--primary);
+        }
+        .stream-step code {
+            background: var(--gray-200);
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        .stream-content {
+            font-size: 14px;
+            line-height: 1.7;
+        }
+        .stream-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            font-size: 13px;
+        }
+        .stream-content th, .stream-content td {
+            border: 1px solid var(--gray-200);
+            padding: 8px 12px;
+            text-align: left;
+        }
+        .stream-content th {
+            background: var(--gray-100);
+            font-weight: 600;
+        }
+        .stream-content tr:nth-child(even) {
+            background: var(--gray-50);
+        }
+        .stream-content h1, .stream-content h2, .stream-content h3, .stream-content h4 {
+            margin-top: 16px;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        .stream-content p {
+            margin-bottom: 10px;
+        }
+        .stream-content blockquote {
+            border-left: 4px solid var(--primary);
+            padding-left: 12px;
+            color: var(--gray-600);
+            margin: 10px 0;
+        }
+        .stream-content code {
+            background: var(--gray-100);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .stream-content pre {
+            background: var(--gray-900);
+            color: var(--gray-100);
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeIn .3s ease; }
     </style>
 </head>
 <body>
@@ -51,14 +284,14 @@
 <!-- 左侧导航 -->
 <div class="sidebar">
     <div class="brand"><i class="bi bi-graph-up-arrow"></i> AGI实验室</div>
-    <a class="nav-btn {{ 'active' if active_page == 'overview' }}" href="/"><i class="bi bi-house-door"></i> 概览</a>
-    <a class="nav-btn {{ 'active' if active_page == 'analyze' }}" href="/analyze"><i class="bi bi-graph-up"></i> 标的分析</a>
-    <a class="nav-btn {{ 'active' if active_page == 'workflow' }}" href="/workflow"><i class="bi bi-diagram-3"></i> 工作流</a>
-    <a class="nav-btn {{ 'active' if active_page == 'agents' }}" href="/agents"><i class="bi bi-people"></i> Agent 角色</a>
-    <a class="nav-btn {{ 'active' if active_page == 'files' }}" href="/files"><i class="bi bi-folder2-open"></i> 项目文件</a>
-    <a class="nav-btn {{ 'active' if active_page == 'cache' }}" href="/cache"><i class="bi bi-database"></i> 数据缓存</a>
+    <div class="nav-section">主菜单</div>
+    <a class="nav-btn {{ 'active' if active_page == 'dashboard' }}" href="/dashboard"><i class="bi bi-speedometer2"></i> 仪表板</a>
+    <a class="nav-btn {{ 'active' if active_page == 'chat' }}" href="/chat"><i class="bi bi-chat-dots"></i> 智能问答</a>
+    <a class="nav-btn {{ 'active' if active_page == 'single-analysis' }}" href="/single-analysis"><i class="bi bi-file-earmark-text"></i> 单股分析</a>
+    <a class="nav-btn {{ 'active' if active_page == 'queue' }}" href="/queue"><i class="bi bi-list-task"></i> 任务中心</a>
+    <a class="nav-btn {{ 'active' if active_page == 'settings' }}" href="/settings"><i class="bi bi-gear"></i> 设置</a>
     <div class="sidebar-bottom">
-        <a class="nav-btn" href="/settings"><i class="bi bi-gear"></i> 设置 <span class="ver">v0.1</span></a>
+        <a class="nav-btn" href="/settings"><i class="bi bi-gear"></i> 设置</a>
     </div>
 </div>
 

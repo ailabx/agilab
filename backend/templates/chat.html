@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}智能问答 - AGI实验室{% endblock %}
+{% block content %}
+
+<div class="d-flex flex-column h-100" style="max-height: calc(100vh - 120px);">
+    <!-- 头部 -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h2 class="mb-0"><i class="bi bi-chat-dots text-primary"></i> 智能问答</h2>
+        <span class="badge bg-primary">AGI实验室总分析师</span>
+    </div>
+
+    <!-- 聊天窗口 -->
+    <div id="chat-box" class="flex-grow-1 p-3 mb-3" style="background: var(--gray-50); border-radius: 12px; overflow-y: auto; min-height: 400px; border: 1px solid var(--gray-200);">
+        <div class="text-center text-muted mb-4">
+            <div class="mb-2"><i class="bi bi-robot fs-1"></i></div>
+            <p class="mb-0">你好，我是 AGI 实验室总分析师。</p>
+            <p class="small">可以问我股票、ETF、期货、可转债、场外基金五类资产问题。</p>
+            <p class="small text-muted">例如："分析螺纹钢"、"看看贵州茅台"、"510300怎么样"、"分析隆基转债"</p>
+        </div>
+    </div>
+
+    <!-- 快捷问题 -->
+    <div class="mb-3">
+        <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-sm btn-outline-primary quick-btn" data-q="分析螺纹钢">🌾 螺纹钢</button>
+            <button class="btn btn-sm btn-outline-primary quick-btn" data-q="看看贵州茅台"> 贵州茅台</button>
+            <button class="btn btn-sm btn-outline-primary quick-btn" data-q="510300走势">📊 沪深300ETF</button>
+            <button class="btn btn-sm btn-outline-primary quick-btn" data-q="分析隆基转债">💱 隆基转债</button>
+        </div>
+    </div>
+
+    <!-- 输入框 -->
+    <div class="input-group">
+        <input type="text" id="chat-input" class="form-control" placeholder="输入问题，如：分析螺纹钢、看看贵州茅台..." autocomplete="off">
+        <button id="send-btn" class="btn btn-primary">
+            <i class="bi bi-send"></i> 发送
+        </button>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script>
+const AGENT_ID = 'futures-analyst';
+let sessionId = localStorage.getItem('chat_session_id') || 'sess_' + Math.random().toString(36).slice(2, 10);
+localStorage.setItem('chat_session_id', sessionId);
+
+const chatBox = document.getElementById('chat-box');
+const chatInput = document.getElementById('chat-input');
+const sendBtn = document.getElementById('send-btn');
+
+function appendMessage(content, isUser = false, isHtml = false) {
+    const wrapper = document.createElement('div');
+    wrapper.className = `d-flex mb-3 ${isUser ? 'justify-content-end' : 'justify-content-start'}`;
+
+    const bubble = document.createElement('div');
+    bubble.className = `p-3 rounded-3 ${isUser ? 'bg-primary text-white' : 'bg-white border'}`;
+    bubble.style.maxWidth = '80%';
+    bubble.style.whiteSpace = 'pre-wrap';
+    if (isHtml) {
+        bubble.innerHTML = content;
+    } else {
+        bubble.textContent = content;
+    }
+
+    wrapper.appendChild(bubble);
+    chatBox.appendChild(wrapper);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    return bubble;
+}
+
+function appendThinking() {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'd-flex mb-3 justify-content-start';
+    wrapper.id = 'thinking-' + Date.now();
+    wrapper.innerHTML = `
+        <div class="p-3 rounded-3 bg-white border w-100">
+            <div class="d-flex align-items-center gap-2 text-muted mb-2">
+                <span class="spinner-border spinner-border-sm"></span>
+                <span>正在分析...</span>
+            </div>
+            <div class="steps small text-muted"></div>
+        </div>
+    `;
+    chatBox.appendChild(wrapper);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    return wrapper;
+}
+
+function appendError(msg) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'd-flex mb-3 justify-content-start';
+    wrapper.innerHTML = `<div class="p-3 rounded-3 bg-danger text-white">${msg}</div>`;
+    chatBox.appendChild(wrapper);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function updateThinking(wrapper, step) {
+    const stepsDiv = wrapper.querySelector('.steps');
+    if (!stepsDiv) return;
+    const line = document.createElement('div');
+    line.className = 'stream-step';
+    line.innerHTML = step;
+    stepsDiv.appendChild(line);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function finalizeThinking(wrapper, finalHtml) {
+    const spinner = wrapper.querySelector('.spinner-border');
+    if (spinner) spinner.remove();
+    const stepsDiv = wrapper.querySelector('.steps');
+    if (stepsDiv) {
+        stepsDiv.style.display = 'none';
+    }
+    const bubble = wrapper.querySelector('.p-3');
+    bubble.classList.add('stream-content');
+    bubble.innerHTML = marked.parse(finalHtml, { breaks: true });
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+async function sendMessage() {
+    const message = chatInput.value.trim();
+    if (!message) return;
+
+    appendMessage(message, true);
+    chatInput.value = '';
+
+    const thinkingWrapper = appendThinking();
+    let finalContent = '';
+
+    const evtSource = new EventSource(`/chat/stream?message=${encodeURIComponent(message)}&session_id=${encodeURIComponent(sessionId)}`);
+
+    evtSource.onmessage = (e) => {
+        try {
+            const data = JSON.parse(e.data);
+            if (!data || !data.type) return;
+
+            const type = data.type;
+            const eventName = data.event || type;
+
+            if (type === 'RunContentEvent') {
+                if (data.content) {
+                    finalContent += data.content;
+                }
+                if (data.reasoning_content) {
+                    updateThinking(thinkingWrapper, `🧠 推理：${data.reasoning_content}`);
+                }
+            } else if (type === 'ToolCallStartedEvent') {
+                updateThinking(thinkingWrapper, `🔧 调用工具 <code>${data.tool || ''}</code>：${JSON.stringify(data.input || {})}`);
+            } else if (type === 'ToolCallCompletedEvent') {
+                updateThinking(thinkingWrapper, `✅ 工具 <code>${data.tool || ''}</code> 完成`);
+            } else if (type === 'ReasoningContentDeltaEvent' || type === 'ReasoningStepEvent') {
+                if (data.content) {
+                    updateThinking(thinkingWrapper, `🧠 推理：${data.content}`);
+                }
+            } else if (type === 'error') {
+                finalizeThinking(thinkingWrapper, '出错了：' + data.content);
+                evtSource.close();
+            }
+        } catch (err) {
+            console.error('解析 SSE 失败', err);
+        }
+    };
+
+    evtSource.addEventListener('close', () => {
+        finalizeThinking(thinkingWrapper, finalContent || '（无返回内容）');
+    });
+
+    evtSource.onerror = (e) => {
+        if (finalContent) {
+            finalizeThinking(thinkingWrapper, finalContent);
+        } else {
+            finalizeThinking(thinkingWrapper, '连接中断或服务端错误');
+        }
+        evtSource.close();
+    };
+}
+
+sendBtn.addEventListener('click', sendMessage);
+chatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendMessage();
+});
+
+document.querySelectorAll('.quick-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        chatInput.value = btn.dataset.q;
+        sendMessage();
+    });
+});
+</script>
+{% endblock %}

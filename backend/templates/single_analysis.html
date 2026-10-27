@@ -1,0 +1,704 @@
+{% extends "base.html" %}
+{% block title %}单股分析 - AGI实验室{% endblock %}
+{% block content %}
+<!-- 页面头部 -->
+<div class="page-header mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <div class="page-icon">
+            <i class="bi bi-file-earmark-text"></i>
+        </div>
+        <div>
+            <h2 class="mb-1">单股分析</h2>
+            <p class="text-muted mb-0">AI驱动的智能股票分析，多维度评估投资价值与风险</p>
+        </div>
+    </div>
+</div>
+
+<!-- 分析配置卡片 -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-sliders"></i> 分析配置</span>
+        <span class="badge bg-info">必填信息</span>
+    </div>
+    <div class="card-body">
+        <form id="analysis-form">
+            <!-- 股票信息 -->
+            <div class="mb-4">
+                <h5 class="section-title"><i class="bi bi-graph-up"></i> 股票信息</h5>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">股票代码 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="stock-code" placeholder="如：600519、000001" required>
+                        <div class="form-text">输入股票代码，如 600519</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">市场类型 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="market-type">
+                            <option value="stock">📈 A股</option>
+                            <option value="etf">📊 ETF</option>
+                            <option value="futures">🌾 期货</option>
+                            <option value="convertible">📋 可转债</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">分析日期</label>
+                        <input type="date" class="form-control" id="analysis-date">
+                        <div class="form-text">默认今天</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分析深度 -->
+            <div class="mb-4">
+                <h5 class="section-title"><i class="bi bi-speedometer2"></i> 分析深度</h5>
+                <div class="row g-3">
+                    <div class="col-md-12">
+                        <div class="analysis-depth-options">
+                            <div class="depth-option" data-depth="quick">
+                                <div class="depth-icon">⚡</div>
+                                <div class="depth-info">
+                                    <div class="depth-name">快速分析</div>
+                                    <div class="depth-desc">约2分钟，适合快速了解</div>
+                                </div>
+                            </div>
+                            <div class="depth-option active" data-depth="standard">
+                                <div class="depth-icon">🔍</div>
+                                <div class="depth-info">
+                                    <div class="depth-name">标准分析</div>
+                                    <div class="depth-desc">约5分钟，平衡深度与速度</div>
+                                </div>
+                            </div>
+                            <div class="depth-option" data-depth="deep">
+                                <div class="depth-icon">🎯</div>
+                                <div class="depth-info">
+                                    <div class="depth-name">深度分析</div>
+                                    <div class="depth-desc">约10分钟，全面深入分析</div>
+                                </div>
+                            </div>
+                            <div class="depth-option" data-depth="comprehensive">
+                                <div class="depth-icon">🔬</div>
+                                <div class="depth-info">
+                                    <div class="depth-name">全面分析</div>
+                                    <div class="depth-desc">约16分钟，最详尽的报告</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分析师团队 -->
+            <div class="mb-4">
+                <h5 class="section-title"><i class="bi bi-people"></i> 分析师团队</h5>
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <div class="analyst-checkbox">
+                            <input type="checkbox" id="analyst-market" checked>
+                            <label for="analyst-market">
+                                <i class="bi bi-graph-up-arrow"></i>
+                                <span>市场分析师</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="analyst-checkbox">
+                            <input type="checkbox" id="analyst-fundamental" checked>
+                            <label for="analyst-fundamental">
+                                <i class="bi bi-building"></i>
+                                <span>基本面分析师</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="analyst-checkbox">
+                            <input type="checkbox" id="analyst-news" checked>
+                            <label for="analyst-news">
+                                <i class="bi bi-newspaper"></i>
+                                <span>新闻分析师</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="analyst-checkbox">
+                            <input type="checkbox" id="analyst-social">
+                            <label for="analyst-social">
+                                <i class="bi bi-chat-dots"></i>
+                                <span>社媒分析师</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 高级配置 -->
+            <div class="mb-4">
+                <h5 class="section-title"><i class="bi bi-gear"></i> 高级配置</h5>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">AI模型</label>
+                        <select class="form-select" id="ai-model">
+                            <option value="kimi-k2.5">kimi-k2.5 (默认)</option>
+                            <option value="gpt-4">GPT-4</option>
+                            <option value="claude-3">Claude-3</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">语言偏好</label>
+                        <select class="form-select" id="language">
+                            <option value="zh">中文</option>
+                            <option value="en">English</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">输出格式</label>
+                        <select class="form-select" id="output-format">
+                            <option value="markdown">Markdown</option>
+                            <option value="pdf">PDF</option>
+                            <option value="json">JSON</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="d-flex gap-3">
+                <button type="submit" class="btn btn-primary btn-lg" id="start-analysis-btn">
+                    <i class="bi bi-play-fill"></i> 开始分析
+                </button>
+                <button type="button" class="btn btn-outline-secondary" id="reset-form-btn">
+                    <i class="bi bi-arrow-counterclockwise"></i> 重置
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 分析进度区（初始隐藏） -->
+<div id="analysis-progress" class="mb-4" style="display: none;">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-activity"></i> 分析进度</span>
+            <span class="badge bg-primary" id="progress-status">运行中</span>
+        </div>
+        <div class="card-body">
+            <div class="progress mb-3">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                     id="progress-bar" role="progressbar" style="width: 0%">
+                    0%
+                </div>
+            </div>
+            <div class="d-flex justify-content-between text-muted mb-3">
+                <span id="progress-text">正在初始化...</span>
+                <span id="progress-time">已用时间: 0秒</span>
+            </div>
+            
+            <!-- Phase 进度 -->
+            <div class="phase-progress-list" id="phase-list">
+                <!-- 动态生成 -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 分析结果区（初始隐藏） -->
+<div id="analysis-result" class="mb-4" style="display: none;">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-clipboard-check"></i> 分析结果</span>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-primary" id="download-report-btn">
+                    <i class="bi bi-download"></i> 下载报告
+                </button>
+                <button class="btn btn-sm btn-outline-success" id="paper-trade-btn">
+                    <i class="bi bi-cart-plus"></i> 模拟下单
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <!-- 最终决策卡片 -->
+            <div class="final-decision mb-4">
+                <div class="decision-header">
+                    <h4 class="mb-0">最终决策</h4>
+                    <span class="decision-badge" id="decision-badge">观望</span>
+                </div>
+                <div class="decision-metrics row g-3 mt-2">
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-label">置信度</div>
+                            <div class="metric-value" id="confidence-value">--</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-label">风险评分</div>
+                            <div class="metric-value" id="risk-value">--</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-label">建议仓位</div>
+                            <div class="metric-value" id="position-value">--</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-label">目标价</div>
+                            <div class="metric-value" id="target-value">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 多标签页报告 -->
+            <ul class="nav nav-tabs" id="reportTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="tab-summary" data-bs-toggle="tab" data-bs-target="#content-summary" type="button">
+                        <i class="bi bi-clipboard-data"></i> 综合摘要
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-technical" data-bs-toggle="tab" data-bs-target="#content-technical" type="button">
+                        <i class="bi bi-graph-up"></i> 技术分析
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-fundamental" data-bs-toggle="tab" data-bs-target="#content-fundamental" type="button">
+                        <i class="bi bi-building"></i> 基本面
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-news" data-bs-toggle="tab" data-bs-target="#content-news" type="button">
+                        <i class="bi bi-newspaper"></i> 新闻情绪
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-debate" data-bs-toggle="tab" data-bs-target="#content-debate" type="button">
+                        <i class="bi bi-chat-square-text"></i> 多空辩论
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-risk" data-bs-toggle="tab" data-bs-target="#content-risk" type="button">
+                        <i class="bi bi-shield-check"></i> 风险评估
+                    </button>
+                </li>
+            </ul>
+            <div class="tab-content pt-3" id="reportTabContent">
+                <div class="tab-pane fade show active" id="content-summary" role="tabpanel">
+                    <div id="summary-content">等待分析结果...</div>
+                </div>
+                <div class="tab-pane fade" id="content-technical" role="tabpanel">
+                    <div id="technical-content">等待分析结果...</div>
+                </div>
+                <div class="tab-pane fade" id="content-fundamental" role="tabpanel">
+                    <div id="fundamental-content">等待分析结果...</div>
+                </div>
+                <div class="tab-pane fade" id="content-news" role="tabpanel">
+                    <div id="news-content">等待分析结果...</div>
+                </div>
+                <div class="tab-pane fade" id="content-debate" role="tabpanel">
+                    <div id="debate-content">等待分析结果...</div>
+                </div>
+                <div class="tab-pane fade" id="content-risk" role="tabpanel">
+                    <div id="risk-content">等待分析结果...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* 页面头部 */
+.page-header {
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 24px;
+}
+.page-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+}
+
+/* 分区标题 */
+.section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--primary-color);
+    display: inline-block;
+}
+
+/* 分析深度选项 */
+.analysis-depth-options {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+.depth-option {
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+.depth-option:hover {
+    border-color: var(--primary-color);
+    background: var(--primary-light);
+}
+.depth-option.active {
+    border-color: var(--primary-color);
+    background: var(--primary-light);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+.depth-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+}
+.depth-name {
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+.depth-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+/* 分析师选择 */
+.analyst-checkbox {
+    position: relative;
+}
+.analyst-checkbox input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+}
+.analyst-checkbox label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+.analyst-checkbox label:hover {
+    border-color: var(--primary-color);
+    background: var(--primary-light);
+}
+.analyst-checkbox input:checked + label {
+    border-color: var(--primary-color);
+    background: var(--primary-light);
+}
+.analyst-checkbox label i {
+    font-size: 24px;
+    color: var(--primary-color);
+}
+.analyst-checkbox label span {
+    font-weight: 500;
+}
+
+/* 最终决策 */
+.final-decision {
+    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+    border-radius: 12px;
+    padding: 24px;
+}
+.decision-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.decision-badge {
+    padding: 8px 24px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 18px;
+    background: #f59e0b;
+    color: white;
+}
+.decision-badge.buy {
+    background: #10b981;
+}
+.decision-badge.sell {
+    background: #ef4444;
+}
+.decision-badge.hold {
+    background: #f59e0b;
+}
+
+/* 指标卡片 */
+.metric-card {
+    background: white;
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.metric-label {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+.metric-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* Phase 进度 */
+.phase-progress-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.phase-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: var(--bg-secondary);
+}
+.phase-item.running {
+    background: var(--primary-light);
+    border: 1px solid var(--primary-color);
+}
+.phase-item.completed {
+    background: #f0fdf4;
+    border: 1px solid #10b981;
+}
+.phase-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-color);
+    color: white;
+}
+.phase-info {
+    flex: 1;
+}
+.phase-name {
+    font-weight: 500;
+}
+.phase-status {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .analysis-depth-options {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    let currentTaskId = null;
+    let pollTimer = null;
+    let startTime = null;
+    let elapsedTimer = null;
+
+    // 分析深度选择
+    document.querySelectorAll('.depth-option').forEach(opt => {
+        opt.addEventListener('click', function() {
+            document.querySelectorAll('.depth-option').forEach(o => o.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+
+    // 表单提交
+    document.getElementById('analysis-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const stockCode = document.getElementById('stock-code').value.trim();
+        const marketType = document.getElementById('market-type').value;
+        const depth = document.querySelector('.depth-option.active').dataset.depth;
+        
+        if (!stockCode) {
+            alert('请输入股票代码');
+            return;
+        }
+
+        // 显示进度区
+        document.getElementById('analysis-progress').style.display = 'block';
+        document.getElementById('analysis-result').style.display = 'none';
+        
+        // 启动分析
+        try {
+            const resp = await fetch('/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `market=${marketType}&symbol=${stockCode}`
+            });
+            const data = await resp.json();
+            
+            if (data.task_id) {
+                currentTaskId = data.task_id;
+                startTime = Date.now();
+                startPolling();
+                startElapsedTimer();
+            }
+        } catch (err) {
+            console.error('启动分析失败:', err);
+            alert('启动分析失败，请重试');
+        }
+    });
+
+    // 开始轮询
+    function startPolling() {
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(async () => {
+            if (!currentTaskId) return;
+            
+            try {
+                const resp = await fetch(`/api/analyze/${currentTaskId}`);
+                const data = await resp.json();
+                
+                updateProgress(data);
+                
+                if (data.status === 'done') {
+                    stopPolling();
+                    showResults(data);
+                }
+            } catch (err) {
+                console.error('轮询失败:', err);
+            }
+        }, 3000);
+    }
+
+    // 停止轮询
+    function stopPolling() {
+        if (pollTimer) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+        }
+        if (elapsedTimer) {
+            clearInterval(elapsedTimer);
+            elapsedTimer = null;
+        }
+    }
+
+    // 更新进度
+    function updateProgress(data) {
+        const phases = data.phases || [];
+        const totalPhases = 6;
+        const completedPhases = phases.filter(p => p.status.includes('✓')).length;
+        const progress = Math.round((completedPhases / totalPhases) * 100);
+        
+        // 更新进度条
+        const progressBar = document.getElementById('progress-bar');
+        progressBar.style.width = progress + '%';
+        progressBar.textContent = progress + '%';
+        
+        // 更新状态文本
+        const currentPhase = phases.find(p => p.status === '运行中');
+        document.getElementById('progress-text').textContent = currentPhase 
+            ? `正在执行: ${currentPhase.name}` 
+            : '分析完成';
+        
+        // 更新Phase列表
+        const phaseList = document.getElementById('phase-list');
+        phaseList.innerHTML = phases.map(p => `
+            <div class="phase-item ${p.status === '运行中' ? 'running' : p.status.includes('✓') ? 'completed' : ''}">
+                <div class="phase-icon">
+                    <i class="bi bi-${p.icon}"></i>
+                </div>
+                <div class="phase-info">
+                    <div class="phase-name">${p.name}</div>
+                    <div class="phase-status">${p.status}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // 开始计时
+    function startElapsedTimer() {
+        elapsedTimer = setInterval(() => {
+            if (!startTime) return;
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            document.getElementById('progress-time').textContent = 
+                `已用时间: ${minutes}分${seconds}秒`;
+        }, 1000);
+    }
+
+    // 显示结果
+    function showResults(data) {
+        document.getElementById('analysis-result').style.display = 'block';
+        
+        const signal = data.signal || {};
+        
+        // 更新决策
+        const direction = signal.direction || '观望';
+        const badge = document.getElementById('decision-badge');
+        badge.textContent = direction;
+        badge.className = 'decision-badge ' + (direction === '做多' ? 'buy' : direction === '做空' ? 'sell' : 'hold');
+        
+        // 更新指标
+        document.getElementById('confidence-value').textContent = (signal.confidence || 0) + '%';
+        document.getElementById('risk-value').textContent = signal.risk || '--';
+        document.getElementById('position-value').textContent = (signal.position_pct || 0) + '%';
+        document.getElementById('target-value').textContent = signal.target || '--';
+        
+        // 填充报告内容
+        const phases = data.phases || [];
+        phases.forEach(phase => {
+            if (phase.name.includes('技术')) {
+                document.getElementById('technical-content').textContent = phase.output || '无数据';
+            } else if (phase.name.includes('基本面')) {
+                document.getElementById('fundamental-content').textContent = phase.output || '无数据';
+            } else if (phase.name.includes('新闻')) {
+                document.getElementById('news-content').textContent = phase.output || '无数据';
+            } else if (phase.name.includes('辩论')) {
+                document.getElementById('debate-content').textContent = phase.output || '无数据';
+            } else if (phase.name.includes('风控')) {
+                document.getElementById('risk-content').textContent = phase.output || '无数据';
+            }
+        });
+        
+        // 综合摘要
+        const summary = phases.map(p => `${p.name}: ${p.status}`).join('\n');
+        document.getElementById('summary-content').textContent = summary;
+    }
+
+    // 重置表单
+    document.getElementById('reset-form-btn').addEventListener('click', function() {
+        document.getElementById('analysis-form').reset();
+        document.getElementById('analysis-progress').style.display = 'none';
+        document.getElementById('analysis-result').style.display = 'none';
+        stopPolling();
+    });
+
+    // 下载报告
+    document.getElementById('download-report-btn').addEventListener('click', function() {
+        alert('报告下载功能开发中...');
+    });
+
+    // 模拟下单
+    document.getElementById('paper-trade-btn').addEventListener('click', function() {
+        alert('模拟下单功能开发中...');
+    });
+})();
+</script>
+{% endblock %}
