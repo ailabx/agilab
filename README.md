@@ -34,7 +34,8 @@ AgiLab 是一个面向开发者的 AI 落地实验室。我们不追概念、不
 
 订阅下方小鹅通店铺，获取完整专栏、**策略代码**与配套资源：
 
-![小鹅通店铺](images/agi.png)
+<img src="images/agi.png" alt="小鹅通店铺" width="200" />
 
 QQ群（请备注来自：github）
-![小鹅通店铺](images/qq.jpg)
+
+<img src="images/qq.jpg" alt="QQ群" width="200" />
