@@ -1,55 +1,40 @@
-# AgiLab
+# AgiLab（Agi 实验室）
 
-AgiLab，AGI实验室。
+将前沿 AI 技术落地为真实生产力：量化投资・多智能体・科研自动化
 
-## 架构
+Official Website: http://www.ailabx.com/
 
-```
-.
-├── backend/
-│   ├── server.py              # FastAPI + SSE 流式问答服务
-│   └── templates/
-│       └── chat.html          # 问答界面
-├── agents/
-│   └── router_agent.py        # 统一入口 Agent，调用 Skill 并生成报告
-├── skills/
-│   └── financial-research/    # 标准化 Skill：数据采集 → 指标计算 → 结构化输出
-│       ├── SKILL.md
-│       ├── references/
-│       │   └── analysis-framework.md
-│       └── scripts/
-│           ├── main.py        # 编排入口
-│           ├── market_data.py # 行情数据
-│           ├── technical.py   # 技术指标
-│           ├── fundamental.py # 基本面数据
-│           └── sentiment.py   # 情绪指标
-└── config.py                  # 配置（TS_TOKEN 等）
-```
+AgiLab 是一个面向开发者的 AI 落地实验室。我们不追概念、不炒名词，只做一件事：把前沿 AI 技术变成能跑、能赚钱、能提效的真实系统。
 
-## 设计原则
+## 当前聚焦三大方向：
 
-- **Skill 只做数据**：`financial-research` Skill 只负责数据采集、指标计算、结构化输出，不调 LLM。
-- **Agent 负责推理**：`router_agent.py` 调用 Skill 获取数据包，由 LLM 生成中文分析报告。
-- **标准化 CLI**：所有脚本独立可运行，输出 stdout JSON。
+### 量化投资
+用工程化、系统化的方式做资产配置、因子挖掘与策略实盘，让代码替你管理资产。
 
-## 启动
+### 多智能体落地
+从 API 到 Harness，构建可上生产的 Agent 系统，解决真实业务问题。
 
-```bash
-.venv/Scripts/python.exe backend/server.py
-```
+### 科研自动化
+用 AI 重构文献调研、实验设计、论文写作与验证流程，加速科研产出。
 
-访问 http://localhost:8765
+#### 专栏体系
+本仓库同步维护所有专栏的配套代码，边看边敲，随专栏持续更新。
 
-## 支持的品类
+进行中 **《程序员的量化实战课》**
 
-- `stock`：股票，如 `600519`
-- `etf`：ETF，如 `510300`
-- `futures`：期货，如 `RB`
-- `convertible`：可转债，如 `113052`
-- `fund`：场外基金，如 `000001`
+面向有编程基础的开发者，从零到一写出第一个可以实战的量化策略。
+不铺冗长理论，按程序员的习惯推进：先跑通 Hello World，再逐步深入。全程坚持工程化标准 —— 逻辑可描述、规则可编码、结果可回测、风险可管控。
 
-## 测试 Skill
+#### 配套内容：
 
-```bash
-.venv/Scripts/python skills/financial-research/scripts/main.py 600519 --market stock --days 30
-```
+- 专栏文章
+- 视频课程
+- 专属微信群答疑
+- 策略代码下载
+
+订阅下方小鹅通店铺，获取完整专栏、**策略代码**与配套资源：
+
+![小鹅通店铺](images/agi.png)
+
+QQ群（请备注来自：github）
+![小鹅通店铺](images/qq.jpg)
