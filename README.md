@@ -31,6 +31,7 @@ AgiLab 是一个面向开发者的 AI 落地实验室。我们不追概念、不
 - 视频课程
 - 专属微信群答疑
 - 策略代码下载
+<img src="images/stock_bond_rebalance.png" alt="小鹅通店铺" width="300" />
 
 订阅下方小鹅通店铺，获取完整专栏、**策略代码**与配套资源：
 
