@@ -23,6 +23,8 @@ def calc_metrics(nav: pd.Series, risk_free: float = 0.02) -> dict:
     max_dd = ((nav - nav.cummax()) / nav.cummax()).min()
     calmar = ann_ret / abs(max_dd) if max_dd != 0 else 0.0
     return {
+        "start_date": nav.index[0].strftime("%Y-%m-%d"),
+        "end_date": nav.index[-1].strftime("%Y-%m-%d"),
         "total_return": total_ret,
         "annualized_return": ann_ret,
         "volatility": vol,
@@ -34,7 +36,7 @@ def calc_metrics(nav: pd.Series, risk_free: float = 0.02) -> dict:
 
 def plot_nav_and_weights(prices: pd.DataFrame, nav: pd.Series,
                          weights: pd.DataFrame, outdir: str, title: str,
-                         name_map: dict = None) -> str:
+                         name_map: dict = None, filename: str = "fund_comparison.png") -> str:
     """绘制净值曲线和权重变化。name_map 用于把文件名映射为基金名称。"""
     os.makedirs(outdir, exist_ok=True)
     name_map = name_map or {}
@@ -65,7 +67,7 @@ def plot_nav_and_weights(prices: pd.DataFrame, nav: pd.Series,
     ax2.grid(True, linestyle="--", alpha=0.5)
 
     plt.tight_layout()
-    path = os.path.join(outdir, "stock_bond_rebalance.png")
+    path = os.path.join(outdir, filename)
     plt.savefig(path, dpi=150)
     plt.close()
     return path
