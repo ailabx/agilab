@@ -12,13 +12,19 @@ plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei"]
 plt.rcParams["axes.unicode_minus"] = False
 
 
-def calc_metrics(nav: pd.Series, risk_free: float = 0.02) -> dict:
-    """输入净值序列，输出常用业绩指标。"""
+def calc_metrics(nav: pd.Series, risk_free: float = 0.02, ann_factor: int = 252) -> dict:
+    """
+    输入净值序列，输出常用业绩指标。
+
+    年化收益采用复利 CAGR 口径，按交易日年化：
+        ann_ret = (end / start) ^ (ann_factor / n) - 1
+    其中 n 为实际观测到的收益期数。默认 ann_factor=252，对应日频交易日。
+    """
     rets = nav.pct_change().dropna()
     total_ret = nav.iloc[-1] / nav.iloc[0] - 1.0
-    years = (nav.index[-1] - nav.index[0]).days / 365.25
-    ann_ret = (nav.iloc[-1] / nav.iloc[0]) ** (1 / years) - 1.0
-    vol = rets.std() * (252 ** 0.5)
+    n = len(rets)
+    ann_ret = (nav.iloc[-1] / nav.iloc[0]) ** (ann_factor / n) - 1.0 if n > 0 else 0.0
+    vol = rets.std(ddof=1) * (ann_factor ** 0.5)
     sharpe = (ann_ret - risk_free) / vol if vol > 0 else 0.0
     max_dd = ((nav - nav.cummax()) / nav.cummax()).min()
     calmar = ann_ret / abs(max_dd) if max_dd != 0 else 0.0

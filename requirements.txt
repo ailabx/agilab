@@ -6,3 +6,4 @@ sqlite-utils
 akshare
 sqlalchemy
 greenlet
+vectorbt

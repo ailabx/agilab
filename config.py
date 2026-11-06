@@ -8,6 +8,8 @@ import toml
 BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / 'data'
 DATA_DIR.mkdir(exist_ok=True)
+DATALAKE_DIR = Path.home() / ".agilab" / "datalake"
+DATALAKE_DIR.mkdir(parents=True, exist_ok=True)
 
 # 配置项——LLM + 数据源 token
 _CONFIG_KEYS = ["MODEL", "BASE_URL", "KEY", "TS_TOKEN"]

@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}{{ symbol }} - 量化看板{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="m-0" id="symbol-title">{{ symbol }}</h2>
+    <a href="/quant" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-left"></i> 返回看板</a>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1e40af;"><i class="bi bi-currency-yen"></i></div>
+            <div class="num" id="latest-close">-</div>
+            <div class="label">最新收盘价</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(135deg, #dcfce7, #bbf7d0); color: #166534;"><i class="bi bi-calendar"></i></div>
+            <div class="num" id="latest-date">-</div>
+            <div class="label">最新日期</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e;"><i class="bi bi-graph-up"></i></div>
+            <div class="num" id="day-pct">-</div>
+            <div class="label">日涨跌幅</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(135deg, #fce7f3, #fbcfe8); color: #9d174d;"><i class="bi bi-lightning"></i></div>
+            <div class="num" id="momentum-20">-</div>
+            <div class="label">20日动量</div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header"><i class="bi bi-graph-line"></i> 收盘价走势</div>
+    <div class="card-body"><canvas id="priceChart" height="120"></canvas></div>
+</div>
+
+<div class="card">
+    <div class="card-header"><i class="bi bi-bar-chart"></i> 成交量</div>
+    <div class="card-body"><canvas id="volumeChart" height="80"></canvas></div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header"><i class="bi bi-file-earmark-text"></i> 核心财务指标</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0" id="fina-table">
+                <thead class="table-light">
+                    <tr id="fina-head">
+                        <th>报告期</th>
+                    </tr>
+                </thead>
+                <tbody id="fina-body"></tbody>
+            </table>
+        </div>
+        <div id="fina-empty" class="p-3 text-muted small" style="display:none">暂无财务指标数据</div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const symbol = "{{ symbol }}";
+
+function formatPct(v) {
+    if (v === null || v === undefined) return '-';
+    const sign = v > 0 ? '+' : '';
+    return `${sign}${(v * 100).toFixed(2)}%`;
+}
+
+async function loadDetail() {
+    const res = await fetch(`/api/stock/${symbol}`);
+    const data = await res.json();
+
+    if (data.error) {
+        document.querySelector('.main').innerHTML = `<div class="alert alert-warning">${data.error}</div>`;
+        return;
+    }
+
+    document.getElementById('symbol-title').textContent = data.symbol;
+    document.getElementById('latest-close').textContent = data.latest_close.toFixed(2);
+    document.getElementById('latest-date').textContent = data.latest_date;
+
+    const dayPct = data.day_pct;
+    const dayEl = document.getElementById('day-pct');
+    dayEl.textContent = dayPct !== null ? formatPct(dayPct) : '-';
+    dayEl.className = 'num ' + (dayPct >= 0 ? 'text-danger' : 'text-success');
+
+    const mom = data.momentum_20;
+    const momEl = document.getElementById('momentum-20');
+    momEl.textContent = mom !== null ? formatPct(mom) : '-';
+    momEl.className = 'num ' + (mom >= 0 ? 'text-danger' : 'text-success');
+
+    const labels = data.dates;
+    new Chart(document.getElementById('priceChart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: '收盘价',
+                data: data.closes,
+                borderColor: '#6366f1',
+                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                fill: true,
+                pointRadius: 0,
+                tension: 0.2
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { title: { display: false }, legend: { display: false } },
+            scales: {
+                x: { ticks: { maxTicksLimit: 8 } },
+                y: {}
+            }
+        }
+    });
+
+    new Chart(document.getElementById('volumeChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: '成交量',
+                data: data.volumes,
+                backgroundColor: 'rgba(99, 102, 241, 0.6)'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { title: { display: false }, legend: { display: false } },
+            scales: { x: { ticks: { maxTicksLimit: 8 } }, y: {} }
+        }
+    });
+
+    renderFina(data.fina || []);
+}
+
+function renderFina(rows) {
+    const body = document.getElementById('fina-body');
+    const head = document.getElementById('fina-head');
+    if (!rows || rows.length === 0) {
+        document.getElementById('fina-empty').style.display = 'block';
+        return;
+    }
+
+    const colConfig = [
+        { key: 'end_date', label: '报告期' },
+        { key: 'eps', label: 'EPS' },
+        { key: 'roe', label: 'ROE(%)' },
+        { key: 'roa', label: 'ROA(%)' },
+        { key: 'grossprofit_margin', label: '毛利率(%)' },
+        { key: 'netprofit_margin', label: '净利率(%)' },
+        { key: 'op_yoy', label: '营收同比(%)' },
+        { key: 'netprofit_yoy', label: '净利同比(%)' },
+        { key: 'bps', label: 'BPS' },
+        { key: 'current_ratio', label: '流动比率' }
+    ];
+
+    head.innerHTML = colConfig.map(c => `<th>${c.label}</th>`).join('');
+
+    rows.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = colConfig.map(c => {
+            let v = row[c.key];
+            if (v === null || v === undefined) return '<td>-</td>';
+            if (['roe', 'roa', 'grossprofit_margin', 'netprofit_margin', 'op_yoy', 'netprofit_yoy'].includes(c.key)) {
+                v = (v * 100).toFixed(2);
+            } else if (typeof v === 'number') {
+                v = v.toFixed(2);
+            }
+            return `<td>${v}</td>`;
+        }).join('');
+        body.appendChild(tr);
+    });
+}
+
+loadDetail();
+</script>
+{% endblock %}

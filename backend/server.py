@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from config import config
@@ -29,6 +30,10 @@ app = FastAPI(title="AGI实验室", version="0.2")
 # 模板目录
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+# 静态文件
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 # ==================== 页面 ====================
@@ -101,23 +106,49 @@ def _load_dashboard_counts() -> dict:
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard_page(request: Request):
-    cache = _load_dashboard_counts()
-    return templates.TemplateResponse(
-        request,
-        "dashboard.html",
-        {
-            "active_page": "dashboard",
-            "cache": cache,
-            "stats": {"completed_tasks": 0},
-            "cfg": {"MODEL": "default"},
-            "recent_analyses": [],
-        },
-    )
+    return templates.TemplateResponse(request, "quant/index.html", {})
 
 
 @app.get("/single-analysis", response_class=HTMLResponse)
 async def single_analysis_page(request: Request):
     return templates.TemplateResponse(request, "single_analysis.html", {"active_page": "single-analysis"})
+
+
+# ==================== 量化 Dashboard ====================
+
+from alphalab.backend.portal_ext import DashboardPortal
+
+n_quant = DashboardPortal()
+
+
+@app.get("/quant", response_class=HTMLResponse)
+async def quant_dashboard_page(request: Request):
+    return templates.TemplateResponse(request, "quant/index.html", {})
+
+
+@app.get("/dashboard/stock/{symbol}", response_class=HTMLResponse)
+async def quant_stock_page(request: Request, symbol: str):
+    return templates.TemplateResponse(request, "quant/detail.html", {"symbol": symbol})
+
+
+@app.get("/api/summary")
+def api_summary():
+    return n_quant.summary()
+
+
+@app.get("/api/momentum")
+def api_momentum(n: int = 30):
+    try:
+        df = n_quant.momentum_top(n=n)
+        return {"data": df.to_dict(orient="records"), "count": int(len(df))}
+    except Exception as exc:
+        import traceback
+        return {"error": str(exc), "traceback": traceback.format_exc()}
+
+
+@app.get("/api/stock/{symbol}")
+def api_stock(symbol: str):
+    return n_quant.stock_detail(symbol)
 
 
 @app.get("/queue", response_class=HTMLResponse)

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}量化看板 - AGI实验室{% endblock %}
+{% block content %}
+
+<div class="welcome-section d-flex justify-content-between align-items-center">
+    <div>
+        <h1>量化看板</h1>
+        <p>本地数据概览与动量选股</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-primary" onclick="loadMomentum()"><i class="bi bi-arrow-clockwise"></i> 刷新</button>
+    </div>
+</div>
+
+<!-- 概览卡片 -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1e40af;"><i class="bi bi-building"></i></div>
+            <div class="num" id="total-symbols">-</div>
+            <div class="label">股票总数</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(135deg, #dcfce7, #bbf7d0); color: #166534;"><i class="bi bi-database"></i></div>
+            <div class="num" id="symbols-with-data">-</div>
+            <div class="label">有数据股票数</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e;"><i class="bi bi-percent"></i></div>
+            <div class="num" id="coverage">-</div>
+            <div class="label">覆盖率</div>
+        </div>
+    </div>
+</div>
+
+<!-- 动量 Top30 -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-lightning"></i> 20日动量 Top 30</span>
+        <span class="text-muted small">基于本地日线计算</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="momentum-table">
+                <thead class="table-light">
+                    <tr>
+                        <th>排名</th>
+                        <th>代码</th>
+                        <th>名称</th>
+                        <th>行业</th>
+                        <th>地区</th>
+                        <th>最新日期</th>
+                        <th>最新价</th>
+                        <th>20日动量</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function formatDate(dt) {
+    if (!dt) return '-';
+    const d = new Date(dt);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function formatPct(v) {
+    if (v === null || v === undefined) return '-';
+    const sign = v > 0 ? '+' : '';
+    const cls = v >= 0 ? 'text-danger' : 'text-success';
+    return `<span class="${cls}">${sign}${(v * 100).toFixed(2)}%</span>`;
+}
+
+async function loadSummary() {
+    try {
+        const res = await fetch('/api/summary');
+        if (!res.ok) throw new Error('summary fetch failed');
+        const data = await res.json();
+        document.getElementById('total-symbols').textContent = (data.total_symbols ?? 0).toLocaleString();
+        document.getElementById('symbols-with-data').textContent = (data.symbols_with_data ?? 0).toLocaleString();
+        const coverage = data.total_symbols ? ((data.symbols_with_data / data.total_symbols) * 100).toFixed(1) + '%' : '-';
+        document.getElementById('coverage').textContent = coverage;
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function loadMomentum() {
+    try {
+        const res = await fetch('/api/momentum?n=30');
+        if (!res.ok) throw new Error('momentum fetch failed');
+        const json = await res.json();
+        const tbody = document.querySelector('#momentum-table tbody');
+        tbody.innerHTML = '';
+        json.data.forEach((row, idx) => {
+            const tr = document.createElement('tr');
+            tr.style.cursor = 'pointer';
+            const detailUrl = `/dashboard/stock/${row.symbol}`;
+            tr.onclick = () => window.open(detailUrl, '_blank');
+            tr.innerHTML = `
+                <td>${idx + 1}</td>
+                <td><a href="${detailUrl}" target="_blank">${row.symbol}</a></td>
+                <td>${row.name || '-'}</td>
+                <td>${row.industry || '-'}</td>
+                <td>${row.area || '-'}</td>
+                <td>${formatDate(row.trade_date)}</td>
+                <td>${row.close.toFixed(2)}</td>
+                <td>${formatPct(row.momentum)}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadSummary();
+    loadMomentum();
+});
+</script>
+{% endblock %}

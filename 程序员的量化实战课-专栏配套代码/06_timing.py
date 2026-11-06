@@ -3,6 +3,7 @@
 """
 import argparse
 import os
+import time
 
 import pandas as pd
 
@@ -22,6 +23,8 @@ def parse_args():
     parser.add_argument("--data-dir", type=str, default=DEFAULT_DIR, help="CSV 数据目录")
     parser.add_argument("--outdir", type=str, default=DEFAULT_DIR, help="输出目录")
     parser.add_argument("--fee", type=float, default=0.0001, help="交易成本，默认万分之一")
+    parser.add_argument("--ann-factor", type=int, default=252, help="年化因子，默认 252 个交易日")
+    parser.add_argument("--risk-free", type=float, default=0.02, help="无风险利率，默认 2%")
     return parser.parse_args()
 
 
@@ -64,6 +67,8 @@ def load_fund_name_map(data_dir: str) -> dict:
 def main():
     args = parse_args()
 
+    start_time = time.time()
+
     prices = load_asset(os.path.join(args.data_dir, args.symbol))
     prices.columns = ["close"]
     close = prices["close"]
@@ -76,7 +81,9 @@ def main():
     # 运行回测
     prices_df = pd.DataFrame({args.symbol: close})
     nav, weights = backtest(prices_df, weights_target, args.fee)
-    metrics = calc_metrics(nav)
+    metrics = calc_metrics(nav, ann_factor=args.ann_factor, risk_free=args.risk_free)
+
+    elapsed = time.time() - start_time
 
     print(f"=== 择时回测 ({args.symbol}) ===")
     print(f"区间: {metrics['start_date']} ~ {metrics['end_date']}")
@@ -85,6 +92,7 @@ def main():
             print(f"{k}: {v:.2%}")
     print(f"sharpe: {metrics['sharpe']:.2f}")
     print(f"calmar: {metrics['calmar']:.2f}")
+    print(f"运行时间: {elapsed:.4f}s")
 
     os.makedirs(args.outdir, exist_ok=True)
     pd.DataFrame([metrics]).to_csv(os.path.join(args.outdir, "timing_metrics.csv"),
