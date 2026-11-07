@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block title %}单因子分析 - AGI实验室{% endblock %}
+{% block content %}
+
+<div class="welcome-section d-flex justify-content-between align-items-center">
+    <div>
+        <h1>单因子分析</h1>
+        <p>输入因子表达式，快速评估预测能力</p>
+    </div>
+</div>
+
+<!-- 参数面板 -->
+<div class="card">
+    <div class="card-header"><i class="bi bi-calculator"></i> 因子配置</div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label for="expression" class="form-label">因子表达式</label>
+                <input type="text" class="form-control" id="expression" value="STD(close, 20)" placeholder="例如：close / DELAY(close, 20) - 1">
+                <div class="form-text">可用字段: open, high, low, close, vol, amount；常用算子: MA, EMA, STD, DELAY, RANK, CORR 等</div>
+            </div>
+            <div class="col-md-2">
+                <label for="pool" class="form-label">股票池</label>
+                <select class="form-select" id="pool">
+                    <option value="csi300" selected>沪深300</option>
+                    <option value="csi500">中证500</option>
+                    <option value="csi1000">中证1000</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="horizon" class="form-label">预测周期</label>
+                <select class="form-select" id="horizon">
+                    <option value="5">5日</option>
+                    <option value="10">10日</option>
+                    <option value="20" selected>20日</option>
+                    <option value="60">60日</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="adjusted" class="form-label">复权方式</label>
+                <select class="form-select" id="adjusted">
+                    <option value="qfq" selected>前复权</option>
+                    <option value="hfq">后复权</option>
+                    <option value="raw">不复权</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="start" class="form-label">开始日期</label>
+                <input type="date" class="form-control" id="start" value="2024-01-01">
+            </div>
+            <div class="col-md-3">
+                <label for="end" class="form-label">结束日期（留空为最新）</label>
+                <input type="date" class="form-control" id="end">
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+                <button class="btn btn-primary" id="run-btn" onclick="runAnalysis()">
+                    <i class="bi bi-play-fill"></i> 运行分析
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 指标卡片 -->
+<div class="row g-4 mb-4" id="summary-cards" style="display: none;">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="num" id="ic-mean">-</div>
+            <div class="label">IC Mean</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="num" id="ic-ir">-</div>
+            <div class="label">IC IR</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="num" id="rank-ic-mean">-</div>
+            <div class="label">Rank IC Mean</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="num" id="rank-ic-ir">-</div>
+            <div class="label">Rank IC IR</div>
+        </div>
+    </div>
+</div>
+
+<!-- 图表 -->
+<div class="row g-4" id="charts-row" style="display: none;">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-graph-line"></i> IC 时序</div>
+            <div class="card-body"><canvas id="icChart"></canvas></div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-bar-chart"></i> 分位数收益</div>
+            <div class="card-body"><canvas id="quantileChart"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<!-- 加载状态 -->
+<div id="loading" class="text-center py-5" style="display: none;">
+    <div class="spinner-border text-primary" role="status"></div>
+    <p class="mt-2 text-muted">正在计算因子...</p>
+</div>
+
+<div id="error" class="alert alert-danger" style="display: none;"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+let icChart = null;
+let quantileChart = null;
+
+function formatDate(d) {
+    if (!d) return '-';
+    const date = new Date(d);
+    return date.toLocaleDateString('zh-CN');
+}
+
+function formatPct(v) {
+    if (v === null || v === undefined || isNaN(v)) return '-';
+    return (v * 100).toFixed(2) + '%';
+}
+
+async function runAnalysis() {
+    const expression = document.getElementById('expression').value.trim();
+    const pool = document.getElementById('pool').value;
+    const horizon = document.getElementById('horizon').value;
+    const adjusted = document.getElementById('adjusted').value;
+    const start = document.getElementById('start').value.replace(/-/g, '');
+    const endInput = document.getElementById('end').value;
+    const end = endInput ? endInput.replace(/-/g, '') : '';
+
+    if (!expression) {
+        alert('请输入因子表达式');
+        return;
+    }
+
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('error').style.display = 'none';
+    document.getElementById('summary-cards').style.display = 'none';
+    document.getElementById('charts-row').style.display = 'none';
+
+    try {
+        const url = `/api/factor/analyze?expression=${encodeURIComponent(expression)}&pool=${pool}&start=${start}&end=${end}&horizon=${horizon}&adjusted=${adjusted}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        document.getElementById('loading').style.display = 'none';
+
+        if (data.error) {
+            document.getElementById('error').textContent = data.error + '\n' + (data.traceback || '');
+            document.getElementById('error').style.display = 'block';
+            return;
+        }
+
+        document.getElementById('summary-cards').style.display = 'flex';
+        document.getElementById('charts-row').style.display = 'flex';
+
+        document.getElementById('ic-mean').textContent = data.ic.mean.toFixed(4);
+        document.getElementById('ic-ir').textContent = data.ic.ir.toFixed(4);
+        document.getElementById('rank-ic-mean').textContent = data.rank_ic.mean.toFixed(4);
+        document.getElementById('rank-ic-ir').textContent = data.rank_ic.ir.toFixed(4);
+
+        renderIcChart(data.ic_series);
+        renderQuantileChart(data.quantile_returns);
+    } catch (e) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').textContent = e.toString();
+        document.getElementById('error').style.display = 'block';
+    }
+}
+
+function renderIcChart(series) {
+    const ctx = document.getElementById('icChart').getContext('2d');
+    if (icChart) icChart.destroy();
+
+    const labels = series.dates;
+    icChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'IC',
+                    data: series.ic,
+                    borderColor: 'rgba(99, 102, 241, 1)',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    fill: true,
+                    pointRadius: 0,
+                    tension: 0.1
+                },
+                {
+                    label: 'Rank IC',
+                    data: series.rank_ic,
+                    borderColor: 'rgba(16, 185, 129, 1)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    fill: true,
+                    pointRadius: 0,
+                    tension: 0.1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            plugins: { title: { display: false } },
+            scales: {
+                x: { ticks: { maxTicksLimit: 8 } },
+                y: {}
+            }
+        }
+    });
+}
+
+function renderQuantileChart(qret) {
+    const ctx = document.getElementById('quantileChart').getContext('2d');
+    if (quantileChart) quantileChart.destroy();
+
+    quantileChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: qret.labels,
+            datasets: [{
+                label: '平均收益',
+                data: qret.values,
+                backgroundColor: 'rgba(99, 102, 241, 0.7)'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { title: { display: false } },
+            scales: { y: {} }
+        }
+    });
+}
+
+// Allow Enter key in expression input
+document.getElementById('expression').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') runAnalysis();
+});
+</script>
+{% endblock %}

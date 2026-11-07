@@ -39,7 +39,22 @@
 </div>
 
 <div class="card mb-4">
-    <div class="card-header"><i class="bi bi-graph-line"></i> 收盘价走势</div>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-graph-line"></i> 收盘价走势</span>
+        <div class="d-flex gap-2 align-items-center">
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-primary active" id="adj-qfq" onclick="setAdjusted('qfq')">前复权</button>
+                <button type="button" class="btn btn-outline-primary" id="adj-hfq" onclick="setAdjusted('hfq')">后复权</button>
+                <button type="button" class="btn btn-outline-primary" id="adj-raw" onclick="setAdjusted('raw')">不复权</button>
+            </div>
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-primary" id="range-1m" onclick="setRange(22, '1m')">近1月</button>
+                <button type="button" class="btn btn-outline-primary" id="range-6m" onclick="setRange(120, '6m')">近6月</button>
+                <button type="button" class="btn btn-outline-primary active" id="range-1y" onclick="setRange(250, '1y')">近1年</button>
+                <button type="button" class="btn btn-outline-primary" id="range-all" onclick="setRange(null, 'all')">全部</button>
+            </div>
+        </div>
+    </div>
     <div class="card-body"><canvas id="priceChart" height="120"></canvas></div>
 </div>
 
@@ -71,6 +86,11 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 const symbol = "{{ symbol }}";
+let allData = null;
+let priceChart = null;
+let volumeChart = null;
+let currentDays = 250;
+let currentAdjusted = 'qfq';
 
 function formatPct(v) {
     if (v === null || v === undefined) return '-';
@@ -78,14 +98,61 @@ function formatPct(v) {
     return `${sign}${(v * 100).toFixed(2)}%`;
 }
 
+function sliceData(days) {
+    if (!allData) return null;
+    const dates = allData.all_dates || allData.dates;
+    const closes = allData.all_closes || allData.closes;
+    const volumes = allData.all_volumes || allData.volumes;
+    if (!days || days >= dates.length) {
+        return { dates, closes, volumes };
+    }
+    return {
+        dates: dates.slice(-days),
+        closes: closes.slice(-days),
+        volumes: volumes.slice(-days)
+    };
+}
+
+function renderCharts(days) {
+    const data = sliceData(days);
+    if (!data) return;
+
+    if (priceChart) {
+        priceChart.data.labels = data.dates;
+        priceChart.data.datasets[0].data = data.closes;
+        priceChart.update();
+    }
+    if (volumeChart) {
+        volumeChart.data.labels = data.dates;
+        volumeChart.data.datasets[0].data = data.volumes;
+        volumeChart.update();
+    }
+}
+
+function setRange(days, label) {
+    currentDays = days;
+    document.querySelectorAll('[id^="range-"]').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`range-${label}`).classList.add('active');
+    renderCharts(days);
+}
+
+function setAdjusted(adjusted) {
+    currentAdjusted = adjusted;
+    document.querySelectorAll('[id^="adj-"]').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`adj-${adjusted}`).classList.add('active');
+    loadDetail();
+}
+
 async function loadDetail() {
-    const res = await fetch(`/api/stock/${symbol}`);
+    const res = await fetch(`/api/stock/${symbol}?adjusted=${currentAdjusted}`);
     const data = await res.json();
 
     if (data.error) {
         document.querySelector('.main').innerHTML = `<div class="alert alert-warning">${data.error}</div>`;
         return;
     }
+
+    allData = data;
 
     document.getElementById('symbol-title').textContent = data.symbol;
     document.getElementById('latest-close').textContent = data.latest_close.toFixed(2);
@@ -101,14 +168,19 @@ async function loadDetail() {
     momEl.textContent = mom !== null ? formatPct(mom) : '-';
     momEl.className = 'num ' + (mom >= 0 ? 'text-danger' : 'text-success');
 
-    const labels = data.dates;
-    new Chart(document.getElementById('priceChart'), {
+    const chartData = sliceData(currentDays);
+    const labels = chartData.dates;
+
+    if (priceChart) { priceChart.destroy(); }
+    if (volumeChart) { volumeChart.destroy(); }
+
+    priceChart = new Chart(document.getElementById('priceChart'), {
         type: 'line',
         data: {
             labels: labels,
             datasets: [{
                 label: '收盘价',
-                data: data.closes,
+                data: chartData.closes,
                 borderColor: '#6366f1',
                 backgroundColor: 'rgba(99, 102, 241, 0.1)',
                 fill: true,
@@ -118,7 +190,7 @@ async function loadDetail() {
         },
         options: {
             responsive: true,
-            plugins: { title: { display: false }, legend: { display: false } },
+            plugins: { title: { display: false }, legend: { display: false }, zoom: { zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }, pan: { enabled: true, mode: 'x' } } },
             scales: {
                 x: { ticks: { maxTicksLimit: 8 } },
                 y: {}
@@ -126,13 +198,13 @@ async function loadDetail() {
         }
     });
 
-    new Chart(document.getElementById('volumeChart'), {
+    volumeChart = new Chart(document.getElementById('volumeChart'), {
         type: 'bar',
         data: {
             labels: labels,
             datasets: [{
                 label: '成交量',
-                data: data.volumes,
+                data: chartData.volumes,
                 backgroundColor: 'rgba(99, 102, 241, 0.6)'
             }]
         },

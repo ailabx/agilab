@@ -7,6 +7,7 @@ import threading
 from pathlib import Path
 
 import duckdb
+import numpy as np
 import pandas as pd
 
 try:
@@ -58,8 +59,14 @@ class DashboardPortal:
         df = pd.read_parquet(basic_path, columns=["symbol", "name", "industry", "area"])
         return df
 
-    def momentum_top(self, n: int = 30, lookback: int = 20) -> pd.DataFrame:
-        """Return top N symbols by lookback-day return as of the latest date."""
+    def momentum_top(
+        self,
+        n: int = 30,
+        lookback: int = 20,
+        sort_by: str = "momentum",
+        ascending: bool = True,
+    ) -> pd.DataFrame:
+        """Return top N symbols by lookback-day return or volatility as of the latest date."""
         daily_path = self._datalake / "daily" / "stock" / "**" / "data.parquet"
 
         # Determine latest date with data across the universe.
@@ -108,15 +115,18 @@ class DashboardPortal:
         def _lag20(g):
             g = g.sort_values("trade_date").set_index("trade_date").resample("B").last()
             g["close_lag"] = g["close"].shift(lookback)
+            g["volatility_20"] = np.log(g["close"] / g["close"].shift(1)).rolling(window=lookback, min_periods=lookback).std()
             return g
 
         lag = df.groupby("symbol").apply(_lag20).reset_index()
-        lag = lag[lag["close_lag"].notna()][["symbol", "trade_date", "close_lag"]].copy()
+        lag = lag[lag["close_lag"].notna()][["symbol", "trade_date", "close_lag", "volatility_20"]].copy()
         latest = latest.merge(lag, on=["symbol", "trade_date"], how="inner")
         latest["momentum"] = latest["close"] / latest["close_lag"] - 1.0
         latest = latest[latest["momentum"].notna()]
         latest["trade_date"] = pd.to_datetime(latest["trade_date"]).dt.strftime("%Y-%m-%d")
-        latest = latest.sort_values("momentum", ascending=False).head(n)
+
+        # Sort according to user selection
+        latest = latest.sort_values(sort_by, ascending=ascending).head(n)
 
         names = self._load_names()
         if not names.empty:
@@ -125,26 +135,21 @@ class DashboardPortal:
         latest["name"] = latest["name"].fillna("-")
         latest["industry"] = latest["industry"].fillna("-")
         latest["area"] = latest["area"].fillna("-")
-        return latest[["symbol", "name", "industry", "area", "trade_date", "close", "momentum"]].reset_index(drop=True)
+        return latest[["symbol", "name", "industry", "area", "trade_date", "close", "momentum", "volatility_20"]].reset_index(drop=True)
 
     # ------------------------------------------------------------------ #
     # Single stock detail
     # ------------------------------------------------------------------ #
-    def stock_detail(self, symbol: str, days: int = 60) -> dict:
-        daily_path = self._datalake / "daily" / "stock" / "**" / "data.parquet"
-        con = self._con()
-        try:
-            df = con.execute(
-                f"""
-                SELECT symbol, trade_date, open, high, low, close, vol, amount
-                FROM read_parquet('{daily_path.as_posix()}', hive_partitioning=true)
-                WHERE symbol = '{symbol}'
-                ORDER BY trade_date
-                """
-            ).fetchdf()
-        finally:
-            con.close()
+    def stock_detail(
+        self,
+        symbol: str,
+        days: int | None = None,
+        adjusted: str = "qfq",
+    ) -> dict:
+        from alphalab.data.portal import DataPortal
 
+        portal = DataPortal(self._datalake)
+        df = portal.get_prices([symbol], start="20100101", end="20991231", adjusted=adjusted)  # type: ignore
         if df.empty:
             return {"symbol": symbol, "error": "no data"}
 
@@ -163,6 +168,9 @@ class DashboardPortal:
             "day_change": float(latest["close"] - prev["close"]),
             "day_pct": float(latest["close"] / prev["close"] - 1.0) if prev["close"] else None,
             "momentum_20": float(momentum_20) if momentum_20 is not None else None,
+            "all_dates": df["trade_date"].dt.strftime("%Y-%m-%d").tolist(),
+            "all_closes": df["close"].astype(float).tolist(),
+            "all_volumes": df["vol"].astype(float).tolist(),
             "dates": chart_df["trade_date"].dt.strftime("%Y-%m-%d").tolist(),
             "closes": chart_df["close"].astype(float).tolist(),
             "volumes": chart_df["vol"].astype(float).tolist(),

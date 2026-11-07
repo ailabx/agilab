@@ -37,11 +37,20 @@
     </div>
 </div>
 
-<!-- 动量 Top30 -->
+<!-- 动量 / 波动率 Top30 -->
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-lightning"></i> 20日动量 Top 30</span>
-        <span class="text-muted small">基于本地日线计算</span>
+        <span id="table-title"><i class="bi bi-lightning"></i> 20日动量 Top 30</span>
+            <div class="d-flex gap-2 align-items-center">
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-primary active" id="btn-momentum" onclick="setSort('momentum')">20日动量</button>
+                <button type="button" class="btn btn-outline-primary" id="btn-volatility" onclick="setSort('volatility_20')">20日波动率</button>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-direction" onclick="toggleDirection()">
+                <i class="bi bi-arrow-up" id="direction-icon"></i>
+            </button>
+            <span class="text-muted small">基于本地日线计算</span>
+        </div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -56,6 +65,7 @@
                         <th>最新日期</th>
                         <th>最新价</th>
                         <th>20日动量</th>
+                        <th>20日波动率</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -95,9 +105,34 @@ async function loadSummary() {
     }
 }
 
+let currentSort = 'momentum';
+let currentAscending = false;  // default: largest first (Top)
+
+function setSort(sortBy) {
+    currentSort = sortBy;
+    updateSortUI();
+    loadMomentum();
+}
+
+function toggleDirection() {
+    currentAscending = !currentAscending;
+    updateSortUI();
+    loadMomentum();
+}
+
+function updateSortUI() {
+    document.getElementById('btn-momentum').classList.toggle('active', currentSort === 'momentum');
+    document.getElementById('btn-volatility').classList.toggle('active', currentSort === 'volatility_20');
+    document.getElementById('table-title').innerHTML = currentSort === 'momentum'
+        ? '<i class="bi bi-lightning"></i> 20日动量 Top 30'
+        : '<i class="bi bi-graph-down"></i> 20日波动率 Top 30';
+    const icon = document.getElementById('direction-icon');
+    icon.className = currentAscending ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
+}
+
 async function loadMomentum() {
     try {
-        const res = await fetch('/api/momentum?n=30');
+        const res = await fetch(`/api/momentum?n=30&sort_by=${currentSort}&ascending=${currentAscending}`);
         if (!res.ok) throw new Error('momentum fetch failed');
         const json = await res.json();
         const tbody = document.querySelector('#momentum-table tbody');
@@ -116,6 +151,7 @@ async function loadMomentum() {
                 <td>${formatDate(row.trade_date)}</td>
                 <td>${row.close.toFixed(2)}</td>
                 <td>${formatPct(row.momentum)}</td>
+                <td>${formatPct(row.volatility_20)}</td>
             `;
             tbody.appendChild(tr);
         });

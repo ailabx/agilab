@@ -114,6 +114,11 @@ async def single_analysis_page(request: Request):
     return templates.TemplateResponse(request, "single_analysis.html", {"active_page": "single-analysis"})
 
 
+@app.get("/factor-analysis", response_class=HTMLResponse)
+async def factor_analysis_page(request: Request):
+    return templates.TemplateResponse(request, "factor_analysis.html", {"active_page": "factor-analysis"})
+
+
 # ==================== 量化 Dashboard ====================
 
 from alphalab.backend.portal_ext import DashboardPortal
@@ -137,18 +142,45 @@ def api_summary():
 
 
 @app.get("/api/momentum")
-def api_momentum(n: int = 30):
+def api_momentum(n: int = 30, sort_by: str = "momentum", ascending: bool = True):
     try:
-        df = n_quant.momentum_top(n=n)
-        return {"data": df.to_dict(orient="records"), "count": int(len(df))}
+        df = n_quant.momentum_top(n=n, sort_by=sort_by, ascending=ascending)
+        return {"data": df.to_dict(orient="records"), "count": int(len(df)), "sort_by": sort_by, "ascending": ascending}
     except Exception as exc:
         import traceback
         return {"error": str(exc), "traceback": traceback.format_exc()}
 
 
 @app.get("/api/stock/{symbol}")
-def api_stock(symbol: str):
-    return n_quant.stock_detail(symbol)
+def api_stock(symbol: str, days: int | None = None, adjusted: str = "qfq"):
+    return n_quant.stock_detail(symbol, days=days, adjusted=adjusted)
+
+
+from alphalab.backend.factor_analysis_api import run_single_factor_analysis
+
+
+@app.get("/api/factor/analyze")
+def api_factor_analyze(
+    expression: str,
+    pool: str = "csi300",
+    start: str = "20220101",
+    end: str | None = None,
+    horizon: int = 20,
+    adjusted: str = "qfq",
+):
+    try:
+        result = run_single_factor_analysis(
+            expression=expression,
+            pool=pool,
+            start=start,
+            end=end,
+            horizon=horizon,
+            adjusted=adjusted,
+        )
+        return result
+    except Exception as exc:
+        import traceback
+        return {"error": str(exc), "traceback": traceback.format_exc()}
 
 
 @app.get("/queue", response_class=HTMLResponse)
