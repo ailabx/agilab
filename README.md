@@ -39,6 +39,10 @@ AgiLab 是一个面向开发者的 AI 落地实验室。我们不追概念、不
 
 <img src="images/timing.png" alt="小鹅通店铺" width="300" />
 
+年化30%+的策略集：
+
+<img src="images/年化30.png" alt="小鹅通店铺" width="300" />
+
 订阅下方小鹅通店铺，获取完整专栏、**策略代码**与配套资源：
 
 <img src="images/agi.png" alt="小鹅通店铺" width="300" />

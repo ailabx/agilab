@@ -29,6 +29,11 @@ DEFAULT_OUTDIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data"
 # 默认基金列表（Tushare 格式代码，用 .OF 后缀）
 DEFAULT_SYMBOLS = "050002.OF,270042.OF,110026.OF,000218.OF"
 
+# 输出文件名映射：把原始基金代码映射成自定义文件名（可选）。
+# 注意：不要用 .SZ/.SH 场内代码做文件名，这些是场外联接基金（.OF），
+# 场内代码会指向不同的真实基金（如 159915.SZ 实为易方达创业板ETF），容易误导。
+DEFAULT_FILENAME_MAP = {}
+
 
 def parse_args() -> argparse.Namespace:
     """解析命令行参数。"""
@@ -52,6 +57,12 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help="Tushare Pro token；默认从 ~/.agilab/config.toml 读取 TS_TOKEN",
+    )
+    parser.add_argument(
+        "--filename-map",
+        type=str,
+        default=None,
+        help='输出文件名映射，JSON 形式，例如 "{\\"270042.OF\\": \\"159915.SZ\\"}"',
     )
     return parser.parse_args()
 
@@ -78,6 +89,17 @@ def resolve_fund_symbol(name_or_code: str) -> str:
     if name_or_code.upper().endswith(".OF"):
         return name_or_code
     return name_or_code
+
+
+def parse_filename_map(filename_map_str: str) -> dict:
+    """解析 --filename-map 参数为字典。"""
+    import json
+    if not filename_map_str:
+        return {}
+    try:
+        return json.loads(filename_map_str)
+    except Exception as exc:
+        raise ValueError(f"--filename-map 参数不是合法 JSON: {exc}") from exc
 
 
 def fetch_fund_nav(fund_code: str, pro) -> pd.DataFrame:
@@ -142,10 +164,10 @@ def fetch_fund_nav(fund_code: str, pro) -> pd.DataFrame:
     return df[["date", "close"]]
 
 
-def save_to_csv(df: pd.DataFrame, fund_code: str, outdir: str) -> str:
+def save_to_csv(df: pd.DataFrame, filename: str, outdir: str) -> str:
     """将 DataFrame 保存为 CSV 文件。"""
     os.makedirs(outdir, exist_ok=True)
-    path = os.path.join(outdir, f"{fund_code}.csv")
+    path = os.path.join(outdir, f"{filename}.csv")
     df.to_csv(path, index=False, encoding="utf-8-sig")
     return path
 
@@ -160,14 +182,17 @@ def main() -> int:
         print("错误：未提供 Tushare Pro token。请通过 --token 传入或在 ~/.agilab/config.toml 中配置 TS_TOKEN")
         return 1
 
+    filename_map = parse_filename_map(args.filename_map)
+
     pro = ts.pro_api(token)
 
     for raw in symbols:
         fund_code = resolve_fund_symbol(raw)
-        print(f"正在获取: {raw} -> {fund_code}")
+        output_name = filename_map.get(fund_code, fund_code)
+        print(f"正在获取: {raw} -> {fund_code}，输出文件名: {output_name}")
         try:
             df = fetch_fund_nav(fund_code, pro)
-            path = save_to_csv(df, fund_code, outdir)
+            path = save_to_csv(df, output_name, outdir)
             print(f"已保存: {path}，共 {len(df)} 条记录")
         except Exception as exc:  # pragma: no cover
             print(f"获取 {fund_code} 失败: {exc}")
