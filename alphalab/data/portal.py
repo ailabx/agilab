@@ -82,19 +82,54 @@ class DataPortal:
             ]
 
         query = f"""
-            WITH last_adj AS (
-                SELECT symbol, MAX(adj_factor) AS latest
-                FROM read_parquet('{adj_path.as_posix()}', hive_partitioning=true)
-                WHERE symbol IN ({symbol_list})
-                  AND trade_date BETWEEN '{start}' AND '{end}'
-                GROUP BY symbol
+            WITH ranked_adj AS (
+                SELECT
+                    a.symbol,
+                    a.trade_date,
+                    a.adj_factor,
+                    ROW_NUMBER() OVER (PARTITION BY a.symbol, a.trade_date ORDER BY a.adj_factor DESC) AS rn
+                FROM read_parquet('{adj_path.as_posix()}', hive_partitioning=true) a
+                WHERE a.symbol IN ({symbol_list})
+                  AND a.trade_date <= '{end}'
+            ),
+            dedup_adj AS (
+                SELECT symbol, trade_date, adj_factor
+                FROM ranked_adj
+                WHERE rn = 1
+            ),
+            filled_adj AS (
+                SELECT
+                    d.symbol,
+                    d.trade_date,
+                    LAST_VALUE(a.adj_factor IGNORE NULLS)
+                        OVER (
+                            PARTITION BY d.symbol
+                            ORDER BY d.trade_date
+                            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                        ) AS adj_factor
+                FROM read_parquet('{daily_path.as_posix()}', hive_partitioning=true) d
+                LEFT JOIN dedup_adj a
+                    ON d.symbol = a.symbol AND d.trade_date = a.trade_date
+                WHERE d.symbol IN ({symbol_list})
+                  AND d.trade_date BETWEEN '{start}' AND '{end}'
+            ),
+            last_adj AS (
+                SELECT symbol, adj_factor AS latest
+                FROM (
+                    SELECT
+                        symbol,
+                        adj_factor,
+                        ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY trade_date DESC) AS rn
+                    FROM filled_adj
+                )
+                WHERE rn = 1
             )
             SELECT
                 d.symbol,
                 d.trade_date,
                 {", ".join(adjusted_exprs)}
             FROM read_parquet('{daily_path.as_posix()}', hive_partitioning=true) d
-            LEFT JOIN read_parquet('{adj_path.as_posix()}', hive_partitioning=true) a
+            LEFT JOIN filled_adj a
                 ON d.symbol = a.symbol AND d.trade_date = a.trade_date
             LEFT JOIN last_adj la
                 ON d.symbol = la.symbol

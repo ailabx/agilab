@@ -37,7 +37,8 @@ class DashboardPortal:
 
         with_data = 0
         daily_path = self._datalake / "daily" / "stock" / "**" / "data.parquet"
-        if any(self._datalake.glob("daily/stock/year=*/data.parquet")):
+        has_daily = any(self._datalake.glob("daily/stock/year=*/data.parquet"))
+        if has_daily:
             con = self._con()
             try:
                 df = con.execute(
@@ -47,7 +48,36 @@ class DashboardPortal:
             finally:
                 con.close()
 
-        return {"total_symbols": total, "symbols_with_data": with_data}
+        latest_date = None
+        latest_count = None
+        if has_daily:
+            con = self._con()
+            try:
+                df = con.execute(
+                    f"""
+                    SELECT trade_date, COUNT(DISTINCT symbol) AS cnt
+                    FROM read_parquet('{daily_path.as_posix()}', hive_partitioning=true)
+                    GROUP BY trade_date
+                    ORDER BY trade_date DESC
+                    LIMIT 1
+                    """
+                ).fetchdf()
+                if not df.empty:
+                    latest_date = df["trade_date"].iloc[0]
+                    latest_count = int(df["cnt"].iloc[0])
+                    if isinstance(latest_date, pd.Timestamp):
+                        latest_date = latest_date.strftime("%Y-%m-%d")
+                    elif latest_date is not None:
+                        latest_date = str(latest_date)
+            finally:
+                con.close()
+
+        return {
+            "total_symbols": total,
+            "symbols_with_data": with_data,
+            "latest_date": latest_date,
+            "latest_count": latest_count,
+        }
 
     # ------------------------------------------------------------------ #
     # Momentum
@@ -62,11 +92,10 @@ class DashboardPortal:
     def momentum_top(
         self,
         n: int = 30,
-        lookback: int = 20,
-        sort_by: str = "momentum",
-        ascending: bool = True,
+        sort_by: str = "ytd_return",
+        ascending: bool = False,
     ) -> pd.DataFrame:
-        """Return top N symbols by lookback-day return or volatility as of the latest date."""
+        """Return top N symbols by selected return horizon as of the latest date."""
         daily_path = self._datalake / "daily" / "stock" / "**" / "data.parquet"
 
         # Determine latest date with data across the universe.
@@ -85,9 +114,9 @@ class DashboardPortal:
             return pd.DataFrame()
 
         latest_date = latest_date_df["latest_date"].iloc[0]
-        # Load a window large enough to cover the lookback (~250 trade days per year).
         end_ts = pd.Timestamp(latest_date)
-        start_ts = end_ts - pd.Timedelta(days=lookback * 2 + 10)
+        # Load enough history for YTD + 3 months.
+        start_ts = pd.Timestamp(f"{end_ts.year}0101") - pd.Timedelta(days=100)
         start_str = start_ts.strftime("%Y%m%d")
         end_str = end_ts.strftime("%Y%m%d")
 
@@ -110,32 +139,47 @@ class DashboardPortal:
         df["trade_date"] = pd.to_datetime(df["trade_date"])
         df = df.sort_values(["symbol", "trade_date"])
 
-        latest = df.groupby("symbol").tail(1)[["symbol", "trade_date", "close"]].copy()
+        # Pivot to wide format for vectorised cross-sectional calculation.
+        price_df = df.pivot(index="trade_date", columns="symbol", values="close")
+        # Latest price per symbol (respecting each symbol's own last trading day).
+        latest_idx = price_df.apply(lambda s: s.last_valid_index())
+        latest_close = price_df.apply(lambda s: s.dropna().iloc[-1])
 
-        def _lag20(g):
-            g = g.sort_values("trade_date").set_index("trade_date").resample("B").last()
-            g["close_lag"] = g["close"].shift(lookback)
-            g["volatility_20"] = np.log(g["close"] / g["close"].shift(1)).rolling(window=lookback, min_periods=lookback).std()
-            return g
+        # YTD reference: first trading day of the current year for each symbol.
+        year_start = pd.Timestamp(f"{end_ts.year}0101")
+        ytd_ref = price_df.apply(lambda s: s.loc[s.index >= year_start].dropna().iloc[0] if s.loc[s.index >= year_start].dropna().size else np.nan)
 
-        lag = df.groupby("symbol").apply(_lag20).reset_index()
-        lag = lag[lag["close_lag"].notna()][["symbol", "trade_date", "close_lag", "volatility_20"]].copy()
-        latest = latest.merge(lag, on=["symbol", "trade_date"], how="inner")
-        latest["momentum"] = latest["close"] / latest["close_lag"] - 1.0
-        latest = latest[latest["momentum"].notna()]
-        latest["trade_date"] = pd.to_datetime(latest["trade_date"]).dt.strftime("%Y-%m-%d")
+        # Use each symbol's own latest close for returns.
+        ret_1w = price_df.apply(lambda s: s / s.shift(1).iloc[-1] - 1.0 if len(s.dropna()) >= 6 else np.nan)
+        ret_1m = price_df.apply(lambda s: s / s.shift(5).iloc[-1] - 1.0 if len(s.dropna()) >= 22 else np.nan)
+        ret_3m = price_df.apply(lambda s: s / s.shift(21).iloc[-1] - 1.0 if len(s.dropna()) >= 64 else np.nan)
+        # Volatility: rolling 20-day std of log returns, take last value.
+        vol_20 = price_df.apply(lambda s: np.log(s / s.shift(1)).rolling(window=20, min_periods=20).std().iloc[-1] if len(s.dropna()) >= 20 else np.nan)
+
+        result = pd.DataFrame({
+            "latest_date": latest_idx,
+            "latest_close": latest_close,
+            "ytd_return": latest_close / ytd_ref - 1.0,
+            "return_1w": latest_close / price_df.apply(lambda s: s.dropna().iloc[-6] if len(s.dropna()) >= 6 else np.nan) - 1.0,
+            "return_1m": latest_close / price_df.apply(lambda s: s.dropna().iloc[-22] if len(s.dropna()) >= 22 else np.nan) - 1.0,
+            "return_3m": latest_close / price_df.apply(lambda s: s.dropna().iloc[-64] if len(s.dropna()) >= 64 else np.nan) - 1.0,
+            "volatility_20": vol_20,
+        }).reset_index()
 
         # Sort according to user selection
-        latest = latest.sort_values(sort_by, ascending=ascending).head(n)
+        if sort_by in result.columns:
+            result = result.sort_values(sort_by, ascending=ascending)
+        result = result.head(n)
 
         names = self._load_names()
         if not names.empty:
-            latest = latest.merge(names, on="symbol", how="left")
+            result = result.merge(names, on="symbol", how="left")
 
-        latest["name"] = latest["name"].fillna("-")
-        latest["industry"] = latest["industry"].fillna("-")
-        latest["area"] = latest["area"].fillna("-")
-        return latest[["symbol", "name", "industry", "area", "trade_date", "close", "momentum", "volatility_20"]].reset_index(drop=True)
+        result["name"] = result["name"].fillna("-")
+        result["industry"] = result["industry"].fillna("-")
+        result["area"] = result["area"].fillna("-")
+        result["latest_date"] = pd.to_datetime(result["latest_date"]).dt.strftime("%Y-%m-%d")
+        return result[["symbol", "name", "industry", "area", "latest_date", "latest_close", "ytd_return", "return_1w", "return_1m", "return_3m", "volatility_20"]].reset_index(drop=True)
 
     # ------------------------------------------------------------------ #
     # Single stock detail
@@ -161,8 +205,20 @@ class DashboardPortal:
         prev = chart_df.iloc[-2] if len(chart_df) > 1 else latest
         momentum_20 = latest["close"] / chart_df.iloc[-20]["close"] - 1.0 if len(chart_df) >= 20 else None
 
+        names = self._load_names()
+        info = names[names["symbol"] == symbol]
+        if not info.empty:
+            name = info["name"].iloc[0]
+            industry = info["industry"].iloc[0]
+            area = info["area"].iloc[0]
+        else:
+            name = industry = area = "-"
+
         return {
             "symbol": symbol,
+            "name": name if name else "-",
+            "industry": industry if industry else "-",
+            "area": area if area else "-",
             "latest_date": latest["trade_date"].strftime("%Y-%m-%d"),
             "latest_close": float(latest["close"]),
             "day_change": float(latest["close"] - prev["close"]),

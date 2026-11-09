@@ -142,7 +142,9 @@ def main() -> None:
                     continue
                 state.set_status(symbol, year, table_name, "pending")
                 try:
-                    rows = store.update([symbol], start=start, end=end, force=args.force)
+                    # Force re-fetch for current year to pick up newly available daily bars.
+                    force_current_year = args.force or is_current_year
+                    rows = store.update([symbol], start=start, end=end, force=force_current_year)
                     state.set_status(symbol, year, table_name, "done", rows=rows)
                 except Exception as exc:
                     print(f"FAILED {symbol} {year} {table_name}: {exc}")
