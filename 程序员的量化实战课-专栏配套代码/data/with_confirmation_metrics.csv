@@ -1,0 +1,2 @@
+﻿strategy,start_date,end_date,total_return,annualized_return,volatility,sharpe,max_drawdown,calmar
+with_confirmation,2019-06-25,2026-11-09,1.2625901847917769,0.1293112239335077,0.1152935310123711,0.9481123786709117,-0.11801823480522743,1.095688510736648

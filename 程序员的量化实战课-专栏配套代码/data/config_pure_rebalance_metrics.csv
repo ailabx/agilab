@@ -1,0 +1,2 @@
+﻿strategy,start_date,end_date,total_return,annualized_return,volatility,sharpe,max_drawdown,calmar
+config_pure_rebalance,2023-06-13,2026-11-09,0.7873724654054302,0.19461360263903615,0.1638101112247241,1.0659513099254978,-0.13205983179099773,1.4736774990523849

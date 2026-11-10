@@ -91,7 +91,8 @@ def fetch_etf_daily(fund_code: str, pro) -> pd.DataFrame:
     df_factor = pro.fund_adj(ts_code=fund_code)
     if df_factor is None or df_factor.empty:
         print(f"  警告: {fund_code} 未获取到 fund_adj 复权因子，使用原始 close")
-        df["close"] = pd.to_numeric(df["close"], errors="coerce")
+        for col in ["open", "high", "low", "close"]:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
     else:
         df_factor["trade_date"] = pd.to_datetime(
             df_factor["trade_date"], format="%Y%m%d", errors="coerce"
@@ -101,9 +102,11 @@ def fetch_etf_daily(fund_code: str, pro) -> pd.DataFrame:
         df = df.merge(
             df_factor[["trade_date", "adj_factor"]], on="trade_date", how="left"
         )
-        df["close"] = pd.to_numeric(df["close"], errors="coerce") * df["adj_factor"]
+        for col in ["open", "high", "low", "close"]:
+            df[col] = pd.to_numeric(df[col], errors="coerce") * df["adj_factor"]
 
-    df = df.rename(columns={"trade_date": "date"})[["date", "close"]]
+    df = df.rename(columns={"trade_date": "date"})
+    df = df[["date", "open", "high", "low", "close", "vol"]]
     return df
 
 

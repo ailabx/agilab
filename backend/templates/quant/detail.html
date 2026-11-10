@@ -3,7 +3,10 @@
 {% block content %}
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="m-0" id="symbol-title">{{ symbol }}</h2>
+    <div>
+        <h2 class="m-0" id="symbol-title">{{ symbol }}</h2>
+        <div class="text-muted mt-1"><span id="stock-name">-</span> · <span id="stock-industry">-</span> · <span id="stock-area">-</span></div>
+    </div>
     <a href="/quant" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-left"></i> 返回看板</a>
 </div>
 
@@ -155,6 +158,9 @@ async function loadDetail() {
     allData = data;
 
     document.getElementById('symbol-title').textContent = data.symbol;
+    document.getElementById('stock-name').textContent = data.name || '-';
+    document.getElementById('stock-industry').textContent = data.industry || '-';
+    document.getElementById('stock-area').textContent = data.area || '-';
     document.getElementById('latest-close').textContent = data.latest_close.toFixed(2);
     document.getElementById('latest-date').textContent = data.latest_date;
 
@@ -190,7 +196,21 @@ async function loadDetail() {
         },
         options: {
             responsive: true,
-            plugins: { title: { display: false }, legend: { display: false }, zoom: { zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }, pan: { enabled: true, mode: 'x' } } },
+            plugins: {
+                title: { display: false },
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        title: function(context) {
+                            return context[0].label;
+                        },
+                        label: function(context) {
+                            return '收盘价: ' + context.parsed.y.toFixed(2);
+                        }
+                    }
+                },
+                zoom: { zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }, pan: { enabled: true, mode: 'x' } }
+            },
             scales: {
                 x: { ticks: { maxTicksLimit: 8 } },
                 y: {}
@@ -210,7 +230,20 @@ async function loadDetail() {
         },
         options: {
             responsive: true,
-            plugins: { title: { display: false }, legend: { display: false } },
+            plugins: {
+                title: { display: false },
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        title: function(context) {
+                            return context[0].label;
+                        },
+                        label: function(context) {
+                            return '成交量: ' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            },
             scales: { x: { ticks: { maxTicksLimit: 8 } }, y: {} }
         }
     });

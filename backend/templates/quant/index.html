@@ -32,7 +32,15 @@
         <div class="stat-card">
             <div class="icon" style="background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e;"><i class="bi bi-percent"></i></div>
             <div class="num" id="coverage">-</div>
-            <div class="label">覆盖率</div>
+            <div class="label">有数据覆盖率</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="icon" style="background: linear-gradient(135deg, #ede9fe, #ddd6fe); color: #5b21b6;"><i class="bi bi-calendar-check"></i></div>
+            <div class="num" id="latest-date">-</div>
+            <div class="label">最新数据日期</div>
+            <div class="small text-muted mt-1" id="latest-coverage">-</div>
         </div>
     </div>
 </div>
@@ -43,11 +51,14 @@
         <span id="table-title"><i class="bi bi-lightning"></i> 20日动量 Top 30</span>
             <div class="d-flex gap-2 align-items-center">
             <div class="btn-group btn-group-sm" role="group">
-                <button type="button" class="btn btn-outline-primary active" id="btn-momentum" onclick="setSort('momentum')">20日动量</button>
+                <button type="button" class="btn btn-outline-primary active" id="btn-ytd" onclick="setSort('ytd_return')">今年以来</button>
+                <button type="button" class="btn btn-outline-primary" id="btn-1w" onclick="setSort('return_1w')">近一周</button>
+                <button type="button" class="btn btn-outline-primary" id="btn-1m" onclick="setSort('return_1m')">近一月</button>
+                <button type="button" class="btn btn-outline-primary" id="btn-3m" onclick="setSort('return_3m')">近三月</button>
                 <button type="button" class="btn btn-outline-primary" id="btn-volatility" onclick="setSort('volatility_20')">20日波动率</button>
             </div>
             <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-direction" onclick="toggleDirection()">
-                <i class="bi bi-arrow-up" id="direction-icon"></i>
+                <i class="bi bi-arrow-down" id="direction-icon"></i>
             </button>
             <span class="text-muted small">基于本地日线计算</span>
         </div>
@@ -64,7 +75,10 @@
                         <th>地区</th>
                         <th>最新日期</th>
                         <th>最新价</th>
-                        <th>20日动量</th>
+                        <th>今年以来</th>
+                        <th>近一周</th>
+                        <th>近一月</th>
+                        <th>近三月</th>
                         <th>20日波动率</th>
                     </tr>
                 </thead>
@@ -100,12 +114,20 @@ async function loadSummary() {
         document.getElementById('symbols-with-data').textContent = (data.symbols_with_data ?? 0).toLocaleString();
         const coverage = data.total_symbols ? ((data.symbols_with_data / data.total_symbols) * 100).toFixed(1) + '%' : '-';
         document.getElementById('coverage').textContent = coverage;
+        document.getElementById('latest-date').textContent = data.latest_date || '-';
+        const covEl = document.getElementById('latest-coverage');
+        if (data.latest_count != null && data.total_symbols) {
+            const pct = ((data.latest_count / data.total_symbols) * 100).toFixed(1);
+            covEl.textContent = `${data.latest_count} 只 / ${data.total_symbols} 只 (${pct}%)`;
+        } else {
+            covEl.textContent = '-';
+        }
     } catch (e) {
         console.error(e);
     }
 }
 
-let currentSort = 'momentum';
+let currentSort = 'ytd_return';
 let currentAscending = false;  // default: largest first (Top)
 
 function setSort(sortBy) {
@@ -120,12 +142,29 @@ function toggleDirection() {
     loadMomentum();
 }
 
+const sortLabels = {
+    'ytd_return': '今年以来 Top 30',
+    'return_1w': '近一周 Top 30',
+    'return_1m': '近一月 Top 30',
+    'return_3m': '近三月 Top 30',
+    'volatility_20': '20日波动率 Top 30'
+};
+const sortIcons = {
+    'ytd_return': 'bi-lightning',
+    'return_1w': 'bi-calendar-week',
+    'return_1m': 'bi-calendar-month',
+    'return_3m': 'bi-calendar3',
+    'volatility_20': 'bi-graph-down'
+};
+
 function updateSortUI() {
-    document.getElementById('btn-momentum').classList.toggle('active', currentSort === 'momentum');
+    document.getElementById('btn-ytd').classList.toggle('active', currentSort === 'ytd_return');
+    document.getElementById('btn-1w').classList.toggle('active', currentSort === 'return_1w');
+    document.getElementById('btn-1m').classList.toggle('active', currentSort === 'return_1m');
+    document.getElementById('btn-3m').classList.toggle('active', currentSort === 'return_3m');
     document.getElementById('btn-volatility').classList.toggle('active', currentSort === 'volatility_20');
-    document.getElementById('table-title').innerHTML = currentSort === 'momentum'
-        ? '<i class="bi bi-lightning"></i> 20日动量 Top 30'
-        : '<i class="bi bi-graph-down"></i> 20日波动率 Top 30';
+    const iconClass = sortIcons[currentSort] || 'bi-lightning';
+    document.getElementById('table-title').innerHTML = `<i class="bi ${iconClass}"></i> ${sortLabels[currentSort] || 'Top 30'}`;
     const icon = document.getElementById('direction-icon');
     icon.className = currentAscending ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
 }
@@ -148,9 +187,12 @@ async function loadMomentum() {
                 <td>${row.name || '-'}</td>
                 <td>${row.industry || '-'}</td>
                 <td>${row.area || '-'}</td>
-                <td>${formatDate(row.trade_date)}</td>
-                <td>${row.close.toFixed(2)}</td>
-                <td>${formatPct(row.momentum)}</td>
+                <td>${formatDate(row.latest_date)}</td>
+                <td>${row.latest_close.toFixed(2)}</td>
+                <td>${formatPct(row.ytd_return)}</td>
+                <td>${formatPct(row.return_1w)}</td>
+                <td>${formatPct(row.return_1m)}</td>
+                <td>${formatPct(row.return_3m)}</td>
                 <td>${formatPct(row.volatility_20)}</td>
             `;
             tbody.appendChild(tr);

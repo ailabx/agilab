@@ -142,7 +142,7 @@ def api_summary():
 
 
 @app.get("/api/momentum")
-def api_momentum(n: int = 30, sort_by: str = "momentum", ascending: bool = True):
+def api_momentum(n: int = 30, sort_by: str = "ytd_return", ascending: bool = False):
     try:
         df = n_quant.momentum_top(n=n, sort_by=sort_by, ascending=ascending)
         return {"data": df.to_dict(orient="records"), "count": int(len(df)), "sort_by": sort_by, "ascending": ascending}
