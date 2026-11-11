@@ -1,9 +1,12 @@
-"""AgiLab Agent 入口。
+"""agents - 基于 Agno 的多智能体个股评估模块
 
-目前核心入口：
-    from agents.router_agent import create_router_agent
+导出:
+    StockEvaluationTeam: 个股评估团队
+    evaluate_stock: 便捷评估函数
+    AgentRegistry: 专家 Agent 注册表
 """
 
-from .router_agent import create_router_agent
+from agents.core import StockEvaluationTeam, evaluate_stock
+from agents.members import AgentRegistry
 
-__all__ = ["create_router_agent"]
+__all__ = ["StockEvaluationTeam", "evaluate_stock", "AgentRegistry"]

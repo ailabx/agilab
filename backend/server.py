@@ -23,7 +23,6 @@ from fastapi.templating import Jinja2Templates
 
 from config import config
 from llm import get_model
-from agents.router_agent import create_router_agent
 
 app = FastAPI(title="AGI实验室", version="0.2")
 
